@@ -4,7 +4,7 @@ EasyPlate is a local browser tool for planning sample plate layouts, assigning w
 
 ## Requirements
 
-- Python 3.10 or newer (`python3` on macOS/Linux or `py -3` on Windows).
+- Python 3.10 or newer (`python3` on macOS/Linux or `python` on Windows).
 - A current browser with JavaScript enabled, such as Safari, Edge, Chrome, or
   Firefox.
 - Bash only for the `start.sh` convenience launcher on macOS/Linux. Windows
@@ -95,15 +95,16 @@ Then run these commands in PowerShell (`git clone` requires Git; you can also
 download and extract the repository ZIP):
 
 ```powershell
-py -3 --version
+python --version
 git clone https://github.com/FupaulHuang/EasyPlate.git
 cd EasyPlate
-py -3 server.py
+python server.py
 ```
 
-Open `http://127.0.0.1:8765` in your browser. Keep PowerShell open while using
-EasyPlate; press `Ctrl+C` to stop the server. If `py` is unavailable but
-`python --version` reports Python 3.10+, use `python server.py` instead.
+EasyPlate opens `http://127.0.0.1:8765` in your default browser. Keep
+PowerShell open while using it; press `Ctrl+C` to stop the server. If the
+browser does not open, enter that address manually. If `python` is unavailable
+but the Windows Python launcher is installed, use `py -3 server.py` instead.
 
 ## Start from an existing project folder
 
@@ -113,15 +114,16 @@ On macOS or Linux, run:
 bash start.sh
 ```
 
-On Windows, run `py -3 server.py` from PowerShell instead. `start.sh` asks
-Python's default browser handler to open the page on macOS/Linux. Keep the
-terminal open while using EasyPlate; press `Ctrl+C` there to stop it. No
-internet connection is needed after setup.
+On Windows, run `python server.py` from PowerShell instead. Both commands
+ask the default browser to open the page. Keep the terminal open while using
+EasyPlate; press `Ctrl+C` there to stop it. No internet connection is needed
+after setup.
 
 To choose another port, run `bash start.sh --port 8766` on macOS/Linux or
-`py -3 server.py --port 8766` on Windows, then open
+`python server.py --port 8766` on Windows. The browser opens
 `http://127.0.0.1:8766`. The installed `easyplate` command also accepts
-`--port 8766`.
+`--port 8766`. Use `python server.py --no-browser` to start without opening
+a browser.
 
 If several Python versions are installed on macOS or Linux, `start.sh` uses
 `python3` by default. Select a different Python 3.10+ executable with

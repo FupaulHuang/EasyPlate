@@ -8,7 +8,7 @@ Use this file when an AI agent needs to launch or operate EasyPlate. See
 | Task | Required environment |
 | --- | --- |
 | Run via `start.sh` on macOS/Linux | Python 3.10+ as `python3` or `EASYPLATE_PYTHON`, Bash, and a current browser with JavaScript enabled |
-| Run source on Windows | Python 3.10+ through `py -3` and a current browser with JavaScript enabled |
+| Run source on Windows | Python 3.10+ as `python` (or through `py -3`) and a current browser with JavaScript enabled |
 | Clone the repository | Git, unless the project folder is already available |
 
 The browser executes `app.js` for the interactive app, so JavaScript must be
@@ -29,8 +29,8 @@ command -v "$python_bin"
 Before starting on Windows, run this from PowerShell in the repository root:
 
 ```powershell
-py -3 --version
-py -3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)"
+python --version
+python -c "import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)"
 ```
 
 Confirm that a local browser with JavaScript enabled is available, or that the
@@ -45,16 +45,17 @@ method.
 
 On macOS/Linux, run `bash start.sh` from the repository root. It starts the
 server and asks the default browser to open `http://127.0.0.1:8765`. On
-Windows, run `py -3 server.py` from PowerShell, then open that address in a
-browser. If `py` is unavailable and `python` is Python 3.10+, use
-`python server.py`. Keep the terminal running and press `Ctrl+C` to stop it.
-Use `bash start.sh --port 8766` or `py -3 server.py --port 8766` when the
+Windows, run `python server.py` from PowerShell; it opens the default browser
+too. If the browser does not open, enter the printed URL manually. Keep the
+terminal running and press `Ctrl+C` to stop it. Use
+`bash start.sh --port 8766` or `python server.py --port 8766` when the
 default port is in use. If several Python versions are installed on
 macOS/Linux, set `EASYPLATE_PYTHON` to the desired Python 3.10+ executable
 before running `start.sh`.
 
-For a headless agent with browser automation, run `python3 server.py` on
-macOS/Linux or `py -3 server.py` on Windows in one terminal, then point the
+For a headless agent with browser automation, run
+`python3 server.py --no-browser` on macOS/Linux or
+`python server.py --no-browser` on Windows in one terminal, then point the
 browser at `http://127.0.0.1:8765`. The server only serves the page and
 assets; there is no plate-management HTTP API. A shell HTTP request alone
 cannot create plates or trigger exports.

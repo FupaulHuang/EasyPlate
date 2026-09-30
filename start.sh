@@ -26,7 +26,7 @@ if ! command -v "$python_bin" >/dev/null 2>&1 || \
 fi
 
 url="http://127.0.0.1:${port}"
-"$python_bin" server.py --port "$port" &
+"$python_bin" server.py --no-browser --port "$port" &
 server_pid=$!
 stop_server() {
   kill "$server_pid" 2>/dev/null || true

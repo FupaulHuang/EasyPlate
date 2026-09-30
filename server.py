@@ -41,11 +41,10 @@ def serve(*, port: int = 8765, open_browser: bool = False) -> None:
         server.server_close()
 
 
-def parse_args(*, browser_option: bool) -> argparse.Namespace:
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Start the local EasyPlate browser app")
     parser.add_argument("--port", type=int, default=8765, help="local port (default: 8765)")
-    if browser_option:
-        parser.add_argument("--no-browser", action="store_true", help="do not open a browser automatically")
+    parser.add_argument("--no-browser", action="store_true", help="do not open a browser automatically")
     args = parser.parse_args()
     if not 1 <= args.port <= 65535:
         parser.error("--port must be between 1 and 65535")
@@ -53,12 +52,11 @@ def parse_args(*, browser_option: bool) -> argparse.Namespace:
 
 
 def main() -> None:
-    args = parse_args(browser_option=False)
-    serve(port=args.port)
+    launch()
 
 
 def launch() -> None:
-    args = parse_args(browser_option=True)
+    args = parse_args()
     serve(port=args.port, open_browser=not args.no_browser)
 
 
