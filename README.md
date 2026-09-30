@@ -20,8 +20,9 @@ file.
 
 ### macOS
 
-Check your Python version with `python3 --version`. If it is missing or older
-than 3.10, install a current Python with [Homebrew](https://brew.sh/):
+To run the cloned source, check your Python version with `python3 --version`.
+If it is missing or older than 3.10, install a current Python with
+[Homebrew](https://brew.sh/):
 
 ```bash
 brew install python
@@ -41,7 +42,15 @@ brew install FupaulHuang/easyplate/easyplate
 easyplate
 ```
 
-Homebrew installs the Python version required by this package. To stop
+Homebrew installs Python 3.12 as the package's managed default. EasyPlate also
+works with other Python versions from 3.10 onward. To use one you already
+have, set `EASYPLATE_PYTHON` to its executable, for example:
+
+```bash
+EASYPLATE_PYTHON=/path/to/python3.11 easyplate
+```
+
+The Homebrew package still installs its Python 3.12 dependency. To stop
 EasyPlate, press `Ctrl+C` in its terminal. To uninstall the package:
 
 ```bash
@@ -113,6 +122,11 @@ To choose another port, run `bash start.sh --port 8766` on macOS/Linux or
 `py -3 server.py --port 8766` on Windows, then open
 `http://127.0.0.1:8766`. The installed `easyplate` command also accepts
 `--port 8766`.
+
+If several Python versions are installed on macOS or Linux, `start.sh` uses
+`python3` by default. Select a different Python 3.10+ executable with
+`EASYPLATE_PYTHON=/path/to/python3.11 bash start.sh`. The launcher checks the
+version before starting the server.
 
 If the browser does not open automatically, open `http://127.0.0.1:8765` on
 the same computer. `127.0.0.1` refers to that computer only.

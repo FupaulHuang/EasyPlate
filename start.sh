@@ -18,8 +18,15 @@ if [[ ! "$port" =~ ^[0-9]+$ ]] || (( 10#$port < 1 || 10#$port > 65535 )); then
   exit 2
 fi
 
+python_bin="${EASYPLATE_PYTHON:-python3}"
+if ! command -v "$python_bin" >/dev/null 2>&1 || \
+   ! "$python_bin" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1; then
+  echo "EasyPlate requires Python 3.10 or newer. Set EASYPLATE_PYTHON to a supported Python executable." >&2
+  exit 1
+fi
+
 url="http://127.0.0.1:${port}"
-python3 server.py --port "$port" &
+"$python_bin" server.py --port "$port" &
 server_pid=$!
 stop_server() {
   kill "$server_pid" 2>/dev/null || true
@@ -38,7 +45,7 @@ if ! kill -0 "$server_pid" 2>/dev/null; then
 fi
 
 opened=0
-if python3 -c 'import sys, webbrowser; sys.exit(0 if webbrowser.open(sys.argv[1], new=2) else 1)' "$url" >/dev/null 2>&1; then
+if "$python_bin" -c 'import sys, webbrowser; sys.exit(0 if webbrowser.open(sys.argv[1], new=2) else 1)' "$url" >/dev/null 2>&1; then
   opened=1
 fi
 

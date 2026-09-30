@@ -7,7 +7,7 @@ Use this file when an AI agent needs to launch or operate EasyPlate. See
 
 | Task | Required environment |
 | --- | --- |
-| Run via `start.sh` on macOS/Linux | Python 3.10+ as `python3`, Bash, and a current browser with JavaScript enabled |
+| Run via `start.sh` on macOS/Linux | Python 3.10+ as `python3` or `EASYPLATE_PYTHON`, Bash, and a current browser with JavaScript enabled |
 | Run source on Windows | Python 3.10+ through `py -3` and a current browser with JavaScript enabled |
 | Clone the repository | Git, unless the project folder is already available |
 
@@ -21,8 +21,9 @@ version from the repository root:
 
 ```bash
 command -v bash
-command -v python3
-python3 -c 'import sys; print(sys.version.split()[0]); sys.exit(0 if sys.version_info >= (3, 10) else 1)'
+python_bin="${EASYPLATE_PYTHON:-python3}"
+command -v "$python_bin"
+"$python_bin" -c 'import sys; print(sys.version.split()[0]); sys.exit(0 if sys.version_info >= (3, 10) else 1)'
 ```
 
 Before starting on Windows, run this from PowerShell in the repository root:
@@ -48,7 +49,9 @@ Windows, run `py -3 server.py` from PowerShell, then open that address in a
 browser. If `py` is unavailable and `python` is Python 3.10+, use
 `python server.py`. Keep the terminal running and press `Ctrl+C` to stop it.
 Use `bash start.sh --port 8766` or `py -3 server.py --port 8766` when the
-default port is in use.
+default port is in use. If several Python versions are installed on
+macOS/Linux, set `EASYPLATE_PYTHON` to the desired Python 3.10+ executable
+before running `start.sh`.
 
 For a headless agent with browser automation, run `python3 server.py` on
 macOS/Linux or `py -3 server.py` on Windows in one terminal, then point the
