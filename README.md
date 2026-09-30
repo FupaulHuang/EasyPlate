@@ -29,6 +29,32 @@ brew install python
 
 You can also use the [official Python macOS installer](https://docs.python.org/3/using/mac.html).
 
+### Install with Homebrew on macOS
+
+To install the packaged command, use the separate
+[EasyPlate Homebrew tap](https://github.com/FupaulHuang/homebrew-easyplate):
+
+```bash
+brew tap FupaulHuang/easyplate
+brew trust --formula FupaulHuang/easyplate/easyplate
+brew install FupaulHuang/easyplate/easyplate
+easyplate
+```
+
+Homebrew installs the Python version required by this package. To stop
+EasyPlate, press `Ctrl+C` in its terminal. To uninstall the package:
+
+```bash
+brew uninstall FupaulHuang/easyplate/easyplate
+```
+
+To also remove the formula's trust and the tap:
+
+```bash
+brew untrust --formula FupaulHuang/easyplate/easyplate
+brew untap FupaulHuang/easyplate
+```
+
 ### Ubuntu 22.04+ or Debian 12+ Linux
 
 On a Linux desktop with a current browser, install the command-line tools if
