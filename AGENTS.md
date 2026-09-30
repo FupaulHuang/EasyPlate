@@ -36,8 +36,9 @@ Confirm that a local browser with JavaScript enabled is available, or that the
 agent has browser automation on this computer. See [README.md](README.md) for
 macOS, Linux, and Windows setup examples.
 
-The server listens only on `127.0.0.1:8765`. The browser must run on the same
-computer unless the user supplies a separate connection method.
+The server binds only to `127.0.0.1`, on port 8765 by default. The browser
+must run on the same computer unless the user supplies a separate connection
+method.
 
 ## Start and stop
 
