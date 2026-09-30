@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>EasyPlate · Plate layout designer</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="EasyPlate home">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+      <span><strong>EasyPlate</strong><small>Plate layout designer</small></span>
+    </a>
+    <div class="top-actions">
+      <button id="import-table-button" class="button button-quiet" type="button">Import CSV / TSV</button>
+      <input id="table-file" class="visually-hidden" type="file" accept=".csv,.tsv,.txt">
+      <button id="save-project-button" class="button button-quiet" type="button">Save project</button>
+      <label class="button button-quiet file-button" for="project-file">Open project</label>
+      <input id="project-file" class="visually-hidden" type="file" accept=".json,application/json">
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="intro-row">
+      <div>
+        <p class="eyebrow">LOCAL WORKSPACE <span class="local-dot"></span></p>
+        <h1>Design a plate, well by well.</h1>
+        <p class="intro-copy">Build layouts, add sample metadata, and preview the plate by any feature. Your project stays in this browser.</p>
+      </div>
+      <div class="export-actions">
+        <button id="export-png-button" class="button button-quiet" type="button"><span class="button-icon">▧</span> Export plate PNG</button>
+        <button id="export-csv-button" class="button button-secondary" type="button">Export CSV</button>
+        <button id="export-pdf-button" class="button button-quiet" type="button"><span class="button-icon">▤</span> Save PDF</button>
+      </div>
+    </section>
+
+    <section class="project-bar panel" aria-label="Project plates">
+      <div class="plate-switcher">
+        <div class="section-kicker">PLATES IN THIS PROJECT</div>
+        <div id="plate-list" class="plate-list" role="tablist" aria-label="Plates"></div>
+      </div>
+      <div class="plate-actions">
+        <button id="add-plate-button" class="button button-primary" type="button"><span class="plus">+</span> New plate</button>
+        <button id="create-multiple-plates-button" class="button button-quiet" type="button">Create multiple</button>
+        <button id="duplicate-plate-button" class="button button-quiet" type="button">Duplicate</button>
+        <button id="delete-all-except-first-button" class="button button-quiet" type="button">Delete all except first</button>
+        <button id="reset-project-button" class="button button-quiet" type="button">Reset project to defaults</button>
+        <button id="remove-plate-button" class="button button-icon-only" type="button" aria-label="Remove current plate" title="Remove plate">×</button>
+      </div>
+    </section>
+
+    <section class="setup-panel panel">
+      <div class="panel-heading">
+        <div><div class="section-kicker">PLATE SETUP</div><h2>Plate details</h2></div>
+        <span id="save-status" class="save-status"><span class="save-dot"></span> Saved in this browser</span>
+      </div>
+      <div class="setup-grid">
+        <label class="field"><span>Plate label</span><input id="plate-label" type="text" autocomplete="off" placeholder="e.g. BL_P1"></label>
+        <label class="field"><span>Group</span><input id="plate-group" type="text" autocomplete="off" placeholder="Optional"></label>
+        <label class="field field-small"><span>Rows</span><input id="plate-rows" type="number" min="1" max="40" step="1"></label>
+        <label class="field field-small"><span>Columns</span><input id="plate-columns" type="number" min="1" max="48" step="1"></label>
+        <label class="field"><span>Sample index</span><input id="plate-sample-index" type="text" autocomplete="off" placeholder="Optional"></label>
+        <label class="field"><span>Source sample</span><input id="plate-source-sample" type="text" autocomplete="off" placeholder="Optional"></label>
+      </div>
+      <div class="setup-actions">
+        <button id="apply-plate-to-all-button" class="button button-soft" type="button">Apply this plate's layout and metadata to all plates</button>
+      </div>
+    </section>
+
+    <section class="panel selected-panel well-details-panel">
+      <div class="selected-heading">
+        <div><div class="section-kicker">WELL DETAILS</div><h2 id="selected-well-title">Selected well</h2></div>
+        <div class="details-actions"><span id="selected-count" class="count-pill">1</span><button id="add-field-button" class="button button-quiet" type="button">+ Add field</button><button id="clear-selected-values-button" class="button button-quiet" type="button">Clear selected values</button></div>
+      </div>
+      <p id="selected-help" class="selected-help">Edit the selected well or apply a value to all selected wells.</p>
+      <div id="well-fields" class="well-fields"></div>
+    </section>
+
+    <section class="workspace-grid">
+      <section class="plate-panel panel" aria-label="Plate map">
+        <div class="plate-panel-heading">
+          <div><div class="section-kicker">LAYOUT PREVIEW</div><h2 id="current-plate-title">Plate 1</h2></div>
+          <div class="preview-heading-actions">
+            <div id="window-navigation" class="window-navigation" hidden>
+              <button id="previous-window" class="window-nav-button" type="button" aria-label="Previous window">‹</button>
+              <span id="window-page">Window 1 of 1</span>
+              <button id="next-window" class="window-nav-button" type="button" aria-label="Next window">›</button>
+            </div>
+            <div class="map-legend"><span class="legend-swatch"></span><span id="legend-text">Color shows well name</span></div>
+          </div>
+        </div>
+        <div class="selection-toolbar">
+          <span id="selection-summary">1 well selected</span>
+          <label class="checkbox-field preview-id-toggle"><input id="show-well-id" type="checkbox" checked><span>Show Well ID</span></label>
+          <button id="select-all-wells-button" class="text-button" type="button">Select all wells</button>
+          <button id="invert-selection-button" class="text-button" type="button" title="Toggle selection for every well in the visible window">Invert selection</button>
+        </div>
+        <div class="grid-scroll">
+          <div id="plate-grid" class="plate-grid" role="grid" aria-label="Editable plate grid"></div>
+        </div>
+        <div class="plate-footnote"><span class="footnote-mark">i</span> Drag across wells to select a region. Shift-click adds individual wells. Paste a spreadsheet range into the focused plate.</div>
+      </section>
+
+      <aside class="side-column">
+        <section class="panel display-panel">
+          <div class="section-kicker">DISPLAY &amp; WELL IDS</div>
+          <div class="field display-field">
+            <span class="field-label">Color and label by</span>
+            <div id="feature-picker" class="feature-picker">
+              <button id="feature-picker-button" class="feature-picker-button" type="button" aria-expanded="false" aria-controls="feature-menu">Select features</button>
+              <div id="feature-menu" class="feature-menu" hidden>
+                <div class="feature-menu-actions"><button id="select-all-features" type="button">Select all</button><button id="clear-features" type="button">Clear</button></div>
+                <div id="feature-options" class="feature-options"></div>
+              </div>
+            </div>
+          </div>
+          <div class="preview-controls">
+            <div class="section-kicker">PREVIEW SIZE</div>
+            <label class="range-field"><span>Well size (40–160 px)</span><span class="preview-size-controls"><input id="well-size-slider" class="preview-size-slider" type="range" min="40" max="160" step="1" value="60" aria-label="Adjust well size"><input id="well-size" class="preview-number-input" type="number" min="40" max="160" step="1" value="60" aria-label="Well size in pixels"></span></label>
+            <label class="range-field"><span>Font size (8–30 px)</span><span class="preview-size-controls"><input id="font-size-slider" class="preview-size-slider" type="range" min="8" max="30" step="1" value="18" aria-label="Adjust font size"><input id="font-size" class="preview-number-input" type="number" min="8" max="30" step="1" value="18" aria-label="Font size in pixels"></span></label>
+          </div>
+          <div class="slide-window-controls">
+            <label class="checkbox-field"><input id="slide-window-mode" type="checkbox"><span>Show large plates in windows</span></label>
+            <div class="window-dimensions">
+              <label class="field"><span>Rows per window</span><input id="window-rows" type="number" min="1" max="40" step="1" value="6"></label>
+              <label class="field"><span>Columns per window</span><input id="window-columns" type="number" min="1" max="48" step="1" value="8"></label>
+            </div>
+            <p class="hint">Window mode divides the plate into navigable views. PDF export uses one page per window.</p>
+          </div>
+          <div class="divider"></div>
+          <div class="id-config-heading"><div><strong>Automatic well IDs</strong><small>When on, assign an ID to every well</small></div><span class="id-badge">ID</span></div>
+          <label class="checkbox-field auto-id-toggle"><input id="auto-fill-ids" type="checkbox"><span>Automatically fill all well IDs</span></label>
+          <div class="id-config-grid">
+            <label class="field"><span>Prefix</span><input id="id-prefix" type="text" value="well_dt_" autocomplete="off"></label>
+            <label class="field"><span>Start at</span><input id="id-start" type="number" min="0" step="1" value="1"></label>
+          </div>
+          <label class="field display-field"><span>Numbering order</span>
+            <select id="numbering-order"><option value="column">Down rows, then across columns</option><option value="row">Across rows, then down columns</option></select>
+          </label>
+          <label class="field display-field"><span>Across plates</span>
+            <select id="numbering-scope"><option value="reset">Restart on each plate</option><option value="continue">Continue across project</option></select>
+          </label>
+          <div class="id-action-grid">
+            <button id="generate-selected-ids-button" class="button button-quiet button-full" type="button">Generate IDs for selected wells</button>
+            <button id="generate-ids-button" class="button button-soft button-full" type="button">Regenerate all plate IDs</button>
+          </div>
+          <p class="hint">Automatic fill is on by default for every well. Selected ID generation uses this prefix and start number, skipping IDs already in use. Well ID stays available for manual editing.</p>
+        </section>
+
+      </aside>
+    </section>
+    <footer class="page-footer"><span>EasyPlate runs on this computer. Your data stays here.</span><a href="README.md" target="_blank" rel="noreferrer">How to use</a></footer>
+  </main>
+
+  <dialog id="multi-plate-dialog" class="work-dialog">
+    <form method="dialog" class="dialog-header"><div><div class="section-kicker">PROJECT PLATES</div><h2>Create multiple plates</h2></div><button class="close-button" value="cancel" aria-label="Close">×</button></form>
+    <div class="dialog-content">
+      <p class="dialog-description">Create blank plates using the current plate dimensions and settings.</p>
+      <div class="multi-plate-form-grid">
+        <label class="field"><span>Number of plates</span><input id="multi-plate-count" type="number" min="1" max="100" step="1" value="3"></label>
+        <label class="field"><span>Label prefix</span><input id="multi-plate-prefix" type="text" value="Plate" autocomplete="off"></label>
+        <label class="field"><span>Start numbering at</span><input id="multi-plate-start" type="number" min="1" step="1" value="2"></label>
+      </div>
+      <div id="multi-plate-error" class="dialog-error" role="alert"></div>
+    </div>
+    <div class="dialog-footer"><button id="multi-plate-cancel" class="button button-quiet" type="button">Cancel</button><button id="multi-plate-create" class="button button-primary" type="button">Create plates</button></div>
+  </dialog>
+  <div id="well-tooltip" class="well-tooltip" role="tooltip" hidden></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

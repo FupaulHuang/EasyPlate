@@ -1,0 +1,57 @@
+# Python bytecode and local environments
+__pycache__/
+*.py[cod]
+.venv/
+/.venv-build/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+/build/
+/dist/
+*.egg-info/
+
+# Local settings and editor files
+.env
+.env.*
+!.env.example
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Local agent state
+.agents/
+.codex/
+
+# Packaging and review materials are kept only in this working folder
+/packaging/
+/.github/
+/tests/
+/pyproject.toml
+/MANIFEST.in
+/__init__.py
+/__main__.py
+/CONTRIBUTING.md
+/.editorconfig
+/.gitattributes
+
+# User data and generated exports
+data/
+exports/
+/input/
+/output/
+/results/
+easyplate_project*.json
+plate_layout_annotations*.csv
+/*.csv
+/*.tsv
+/*.xls
+/*.xlsx
+/*.png
+/*.pdf
+
+# Local planning and publication notes
+/PLAN.md
+/PUBLISHING.md
+/PACKAGING.md
