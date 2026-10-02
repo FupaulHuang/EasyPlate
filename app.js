@@ -702,11 +702,14 @@
     const coords = selectionCoordinates();
     const [r, c] = coords[0] || [0, 0];
     const well = wellAt(plate, r, c);
-    const container = $('#well-fields'); container.replaceChildren();
+    const fixed = $('#well-fields-fixed'); fixed.replaceChildren();
+    const container = $('#well-fields');
+    const previousScroll = container.scrollTop;
+    container.replaceChildren();
     updateSelectionSummary();
     if (!coords.length) {
       const empty = document.createElement('p'); empty.className = 'selected-help'; empty.textContent = 'No wells selected. Select wells in Layout Preview to edit their values.';
-      container.append(empty); return;
+      fixed.append(empty); container.classList.remove('is-scrollable'); container.removeAttribute('tabindex'); return;
     }
 
     const occupiedLabel = document.createElement('label'); occupiedLabel.className = 'checkbox-field';
@@ -719,10 +722,18 @@
       saveProject(); renderInspector();
     });
     occupiedLabel.append(checkbox, document.createTextNode(' Mark selected wells as occupied'));
-    container.append(occupiedLabel);
+    fixed.append(occupiedLabel);
 
-    appendWellField(container, 'well_id', well, coords.length > 1);
-    for (const field of metadataFields()) appendWellField(container, field, well, coords.length > 1);
+    appendWellField(fixed, 'well_id', well, coords.length > 1);
+    const fields = metadataFields();
+    for (const field of fields) appendWellField(container, field, well, coords.length > 1);
+    container.classList.toggle('is-scrollable', fields.length > 10);
+    if (fields.length > 10) {
+      container.tabIndex = 0;
+      container.scrollTop = previousScroll;
+    } else {
+      container.removeAttribute('tabindex');
+    }
   }
 
   function renderAll() {
@@ -1094,7 +1105,9 @@
     if (!field) { showToast('Enter a field name using letters or numbers.'); return; }
     if (!isAllowedOptionalField(field)) { showToast('That field name is reserved for plate structure or well IDs.'); return; }
     if (project.fields.includes(field)) { showToast('That field is already active.'); return; }
-    addOptionalField(field); renderFeatures(); renderInspector(); saveProject(); showToast(`Added ${featureLabel(field)}.`);
+    addOptionalField(field);
+    renderFeatures(); renderInspector(); saveProject(); showToast(`Added ${featureLabel(field)}.`);
+    $(`#well-field-${field}`)?.focus();
   }
 
   function onGridPointerDown(event) {

@@ -70,13 +70,25 @@
       </div>
     </section>
 
-    <section class="panel selected-panel well-details-panel">
-      <div class="selected-heading">
-        <div><div class="section-kicker">WELL DETAILS</div><h2 id="selected-well-title">Selected well</h2></div>
-        <div class="details-actions"><span id="selected-count" class="count-pill">1</span><button id="add-field-button" class="button button-quiet" type="button">+ Add field</button><button id="clear-selected-values-button" class="button button-quiet" type="button">Clear selected values</button></div>
+    <section class="panel well-id-panel">
+      <div class="well-id-header">
+        <div><div class="section-kicker">WELL IDS</div><h2>Automatic well IDs</h2></div>
+        <span class="id-badge">ID</span>
       </div>
-      <p id="selected-help" class="selected-help">Edit the selected well or apply a value to all selected wells.</p>
-      <div id="well-fields" class="well-fields"></div>
+      <div class="well-id-controls">
+        <label class="checkbox-field auto-id-toggle"><input id="auto-fill-ids" type="checkbox"><span>Automatically fill all well IDs</span></label>
+        <label class="field id-prefix-field"><span>Prefix</span><input id="id-prefix" type="text" value="well_dt_" autocomplete="off"></label>
+        <label class="field id-start-field"><span>Start at</span><input id="id-start" type="number" min="0" step="1" value="1"></label>
+        <label class="field id-order-field"><span>Numbering order</span>
+          <select id="numbering-order"><option value="column">Down rows, then across columns</option><option value="row">Across rows, then down columns</option></select>
+        </label>
+        <label class="field id-scope-field"><span>Across plates</span>
+          <select id="numbering-scope"><option value="reset">Restart on each plate</option><option value="continue">Continue across project</option></select>
+        </label>
+        <button id="generate-selected-ids-button" class="button button-quiet" type="button">Generate IDs for selected wells</button>
+        <button id="generate-ids-button" class="button button-soft" type="button">Regenerate all plate IDs</button>
+      </div>
+      <p class="hint well-id-hint">Automatic fill is on by default. Selected ID generation uses the prefix and start number, skipping IDs already in use. Well ID stays available for manual editing.</p>
     </section>
 
     <section class="workspace-grid">
@@ -105,8 +117,18 @@
       </section>
 
       <aside class="side-column">
+        <section class="panel selected-panel well-details-panel">
+          <div class="selected-heading">
+            <div><div class="section-kicker">WELL DETAILS</div><h2 id="selected-well-title">Selected well</h2></div>
+            <div class="details-actions"><span id="selected-count" class="count-pill">1</span><button id="add-field-button" class="button button-quiet" type="button">+ Add field</button><button id="clear-selected-values-button" class="button button-quiet" type="button">Clear selected values</button></div>
+          </div>
+          <p id="selected-help" class="selected-help">Edit the selected well or apply a value to all selected wells.</p>
+          <div id="well-fields-fixed" class="well-fields"></div>
+          <div id="well-fields" class="well-fields well-feature-fields" aria-label="Well feature fields"></div>
+        </section>
+
         <section class="panel display-panel">
-          <div class="section-kicker">DISPLAY &amp; WELL IDS</div>
+          <div class="section-kicker">DISPLAY</div>
           <div class="field display-field">
             <span class="field-label">Color and label by</span>
             <div id="feature-picker" class="feature-picker">
@@ -130,24 +152,6 @@
             </div>
             <p class="hint">Window mode divides the plate into navigable views. PDF export uses one page per window.</p>
           </div>
-          <div class="divider"></div>
-          <div class="id-config-heading"><div><strong>Automatic well IDs</strong><small>When on, assign an ID to every well</small></div><span class="id-badge">ID</span></div>
-          <label class="checkbox-field auto-id-toggle"><input id="auto-fill-ids" type="checkbox"><span>Automatically fill all well IDs</span></label>
-          <div class="id-config-grid">
-            <label class="field"><span>Prefix</span><input id="id-prefix" type="text" value="well_dt_" autocomplete="off"></label>
-            <label class="field"><span>Start at</span><input id="id-start" type="number" min="0" step="1" value="1"></label>
-          </div>
-          <label class="field display-field"><span>Numbering order</span>
-            <select id="numbering-order"><option value="column">Down rows, then across columns</option><option value="row">Across rows, then down columns</option></select>
-          </label>
-          <label class="field display-field"><span>Across plates</span>
-            <select id="numbering-scope"><option value="reset">Restart on each plate</option><option value="continue">Continue across project</option></select>
-          </label>
-          <div class="id-action-grid">
-            <button id="generate-selected-ids-button" class="button button-quiet button-full" type="button">Generate IDs for selected wells</button>
-            <button id="generate-ids-button" class="button button-soft button-full" type="button">Regenerate all plate IDs</button>
-          </div>
-          <p class="hint">Automatic fill is on by default for every well. Selected ID generation uses this prefix and start number, skipping IDs already in use. Well ID stays available for manual editing.</p>
         </section>
 
       </aside>

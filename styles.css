@@ -61,7 +61,14 @@ h1 { margin-bottom: 8px; font: 700 clamp(25px, 3vw, 32px)/1.2 Manrope, sans-seri
 .plate-tab.active { color: #236d4c; background: #edf7f0; border-color: #dceee2; }
 .plate-actions { align-self: end; flex-wrap: wrap; }
 .setup-panel { margin-bottom: 14px; padding: 17px 19px 19px; }
-.well-details-panel { margin-bottom: 14px; padding: 16px 19px; }
+.well-id-panel { margin-bottom: 14px; padding: 16px 19px; }
+.well-id-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 13px; }
+.well-id-controls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: end; }
+.well-id-controls > * { min-width: 0; }
+.id-order-field, .id-scope-field, .well-id-controls > button { grid-column: span 2; }
+.well-id-controls > button { width: 100%; }
+.well-id-hint { margin-top: 12px; color: #7d8982; }
+.well-details-panel { padding: 16px; }
 .panel-heading, .plate-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 15px; }
 .panel-heading { margin-bottom: 14px; }
 h2 { margin: 4px 0 0; font: 700 17px/1.35 Manrope, sans-serif; letter-spacing: -.25px; }
@@ -135,14 +142,9 @@ h2 { margin: 4px 0 0; font: 700 17px/1.35 Manrope, sans-serif; letter-spacing: -
 .window-dimensions .field > span { font-size: 11px; }
 .window-dimensions .field input { height: 30px; }
 .window-dimensions .field input:disabled { color: #aab3ad; background: #f5f7f5; }
-.divider { height: 1px; margin: 16px 0 13px; background: #edf1ee; }
-.id-config-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.id-config-heading strong { display: block; color: #36473c; font-size: 12px; }
-.id-config-heading small { display: block; margin-top: 3px; color: #929c95; font-size: 10px; }
 .id-badge { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 7px; color: #45805d; background: #edf6ef; font: 700 10px Manrope, sans-serif; }
-.auto-id-toggle { margin: 8px 0 12px; padding: 8px 9px; border: 1px solid #e7eee8; border-radius: 7px; background: #fbfdfb; }
+.auto-id-toggle { grid-column: span 2; margin: 0; min-height: 36px; padding: 8px 9px; display: flex; align-items: center; border: 1px solid #e7eee8; border-radius: 7px; background: #fbfdfb; }
 .auto-id-toggle span { color: #516157; font-size: 11px; font-weight: 600; }
-.id-action-grid { display: grid; gap: 7px; margin-top: 4px; }
 .field-heading { min-height: 15px; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
 .field-actions { display: flex; align-items: center; gap: 7px; }
 .clear-feature-button { padding: 0 2px; border: 0; color: #548568; background: transparent; font-size: 10px; line-height: 1.2; white-space: nowrap; }
@@ -151,16 +153,20 @@ h2 { margin: 4px 0 0; font: 700 17px/1.35 Manrope, sans-serif; letter-spacing: -
 .remove-field-button { padding: 0 3px; border: 0; color: #a0aaa3; background: transparent; font-size: 10px; line-height: 1.2; }
 .remove-field-button:hover { color: #b14f45; }
 .required-mark { color: #b87344; }
-.id-config-grid { display: grid; grid-template-columns: minmax(0, 1fr) 82px; gap: 9px; margin-bottom: 10px; }
 .hint { margin: 9px 0 0; color: #98a19b; font-size: 10px; line-height: 1.5; }
 .hint code { color: #548068; font-size: 10px; }
 .selected-panel { padding-bottom: 13px; }
 .selected-heading { display: flex; justify-content: space-between; align-items: center; }
+.well-details-panel .selected-heading { align-items: start; flex-wrap: wrap; gap: 10px; }
 .details-actions { display: flex; align-items: center; gap: 9px; }
+.well-details-panel .details-actions { width: 100%; flex-wrap: wrap; gap: 7px; }
 .count-pill { min-width: 24px; height: 24px; padding: 0 7px; display: inline-flex; align-items: center; justify-content: center; border-radius: 20px; color: #4e805e; background: #edf6ef; font-size: 11px; font-weight: 700; }
 .selected-help { margin: 6px 0 12px; color: #98a19b; font-size: 10px; line-height: 1.45; }
-.well-fields { display: grid; gap: 8px; max-height: 370px; overflow-y: auto; padding-right: 2px; }
-.well-details-panel .well-fields { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); max-height: none; overflow: visible; }
+.well-fields { display: grid; gap: 8px; padding-right: 2px; }
+.well-details-panel .well-fields { grid-template-columns: minmax(0, 1fr); }
+.well-details-panel .field-heading { flex-wrap: wrap; }
+.well-feature-fields:not(:empty) { margin-top: 10px; padding-top: 10px; border-top: 1px solid #edf1ee; }
+.well-feature-fields.is-scrollable { max-height: min(620px, 68vh); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-gutter: stable; padding-right: 8px; }
 .well-fields .field > span { margin-bottom: 4px; font-size: 11px; }
 .well-fields .field-heading > label { color: #7d8982; font-size: 11px; font-weight: 600; }
 .well-fields .field input { height: 31px; }
@@ -207,13 +213,14 @@ h2 { margin: 4px 0 0; font: 700 17px/1.35 Manrope, sans-serif; letter-spacing: -
   .brand small { display: none; }
   .page-shell { width: calc(100% - 28px); padding-top: 24px; }
   .intro-row { display: block; }
-  .export-actions { margin-top: 14px; }
+  .export-actions { margin-top: 14px; flex-wrap: wrap; }
   .project-bar { align-items: stretch; flex-direction: column; }
   .plate-actions { justify-content: start; }
   .setup-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .well-id-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .id-order-field, .id-scope-field, .well-id-controls > button { grid-column: 1 / -1; }
   .workspace-grid { grid-template-columns: 1fr; }
-  .side-column { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
-  .selected-panel { grid-row: span 2; }
+  .side-column { grid-template-columns: 1fr; align-items: start; }
   .plate-panel { padding: 15px 13px 13px; }
   .selection-toolbar { gap: 10px; }
 }
@@ -224,7 +231,8 @@ h2 { margin: 4px 0 0; font: 700 17px/1.35 Manrope, sans-serif; letter-spacing: -
   .page-shell { width: calc(100% - 22px); }
   .side-column { grid-template-columns: 1fr; }
   .multi-plate-form-grid { grid-template-columns: 1fr; }
-  .selected-panel { grid-row: auto; }
+  .well-id-controls { grid-template-columns: 1fr; }
+  .well-id-controls > * { grid-column: 1 / -1; }
   .selection-toolbar { flex-wrap: wrap; padding-bottom: 7px; }
   .selection-toolbar > span { flex-basis: 100%; }
   .map-legend { display: none; }
@@ -264,8 +272,6 @@ h2 { font-size: 25.5px; }
 .feature-option { font-size: 16.5px; }
 .range-field > span, .range-field output { font-size: 16.5px; }
 .window-dimensions .field > span { font-size: 16.5px; }
-.id-config-heading strong { font-size: 18px; }
-.id-config-heading small { font-size: 15px; }
 .id-badge { font-size: 15px; }
 .auto-id-toggle span { font-size: 16.5px; }
 .clear-feature-button, .remove-field-button { font-size: 15px; }
