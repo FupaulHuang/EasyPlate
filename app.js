@@ -727,8 +727,8 @@
     appendWellField(fixed, 'well_id', well, coords.length > 1);
     const fields = metadataFields();
     for (const field of fields) appendWellField(container, field, well, coords.length > 1);
-    container.classList.toggle('is-scrollable', fields.length > 10);
-    if (fields.length > 10) {
+    container.classList.toggle('is-scrollable', fields.length > 5);
+    if (fields.length > 5) {
       container.tabIndex = 0;
       container.scrollTop = previousScroll;
     } else {

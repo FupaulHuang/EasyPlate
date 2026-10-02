@@ -20,6 +20,10 @@ class EasyPlateHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
 
+    def end_headers(self) -> None:
+        self.send_header("Cache-Control", "no-store, max-age=0")
+        super().end_headers()
+
     def log_message(self, format: str, *args) -> None:
         sys.stdout.write("EasyPlate: " + format % args + "\n")
 

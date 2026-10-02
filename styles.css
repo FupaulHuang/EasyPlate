@@ -61,23 +61,29 @@ h1 { margin-bottom: 8px; font: 700 clamp(25px, 3vw, 32px)/1.2 Manrope, sans-seri
 .plate-tab.active { color: #236d4c; background: #edf7f0; border-color: #dceee2; }
 .plate-actions { align-self: end; flex-wrap: wrap; }
 .setup-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: stretch; margin-bottom: 14px; }
-.setup-panel, .well-id-panel { min-width: 0; padding: 17px 19px 19px; display: flex; flex-direction: column; }
-.well-id-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; margin-bottom: 14px; }
-.well-id-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; align-items: end; }
-.well-id-controls > * { min-width: 0; }
-.well-id-footer { display: flex; flex-direction: column; gap: 10px; margin-top: auto; padding-top: 10px; }
-.well-id-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
-.well-id-actions .button { max-width: 100%; padding: 5px 11px; white-space: normal; line-height: 1.2; }
-.well-id-hint { margin: 0; color: #6e7c72; }
+.setup-panel { min-width: 0; padding: 17px 19px 19px; display: flex; flex-direction: column; }
+.setup-panel .panel-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 10px; margin-bottom: 14px; }
+.setup-panel .panel-heading > div { display: contents; }
+.setup-panel .panel-heading .section-kicker { grid-column: 1; grid-row: 1; }
+.setup-panel .panel-heading h2 { grid-column: 1 / -1; grid-row: 2; margin: 0; }
+.setup-panel .save-status { grid-column: 2; grid-row: 1; }
 .well-details-panel { padding: 16px; }
 .panel-heading, .plate-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 15px; }
 .panel-heading { margin-bottom: 14px; }
 h2 { margin: 4px 0 0; font: 700 17px/1.35 Manrope, sans-serif; letter-spacing: -.25px; }
 .save-status { display: inline-flex; align-items: center; gap: 7px; color: #85918a; font-size: 11px; }
 .setup-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
+.well-id-panel .setup-grid { grid-template-columns: 160px 100px minmax(0, 1fr); gap: 8px 11px; }
+.id-order-field { grid-column: 1 / span 2; grid-row: 2; }
+.id-scope-field { grid-column: 3; grid-row: 2; }
+.auto-fill-field { grid-column: 3; grid-row: 1; }
 .setup-actions { margin-top: auto; padding-top: 13px; display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.setup-actions .button { max-width: 100%; padding-block: 5px; white-space: normal; line-height: 1.2; text-align: center; }
+.setup-actions.well-id-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.well-id-actions .button { min-width: 0; width: 100%; }
 .field { display: block; min-width: 0; }
 .field > span { display: block; margin-bottom: 5px; color: #7d8982; font-size: 11px; font-weight: 600; }
+.well-id-panel .field > span { min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.25; }
 .field-label { display: block; margin-bottom: 5px; color: #7d8982; font-size: 11px; font-weight: 600; }
 .field input, .field select { width: 100%; height: 36px; padding: 0 10px; border: 1px solid #e3e9e4; border-radius: 7px; outline: none; color: #34443a; background: #fff; font-size: 12px; }
 .field input:focus, .field select:focus, textarea:focus { border-color: #8ebda0; box-shadow: 0 0 0 3px rgba(78, 151, 105, .1); }
@@ -143,8 +149,9 @@ h2 { margin: 4px 0 0; font: 700 17px/1.35 Manrope, sans-serif; letter-spacing: -
 .window-dimensions .field > span { font-size: 11px; }
 .window-dimensions .field input { height: 30px; }
 .window-dimensions .field input:disabled { color: #aab3ad; background: #f5f7f5; }
-.auto-id-toggle { margin: 0; min-height: 36px; padding: 8px 9px; display: flex; align-items: center; border: 1px solid #e7eee8; border-radius: 7px; background: #fbfdfb; }
-.auto-id-toggle span { color: #516157; font-size: 11px; font-weight: 600; }
+.checkbox-field.auto-id-toggle { min-height: 36px; margin: 0; padding: 7px 14px; display: flex; align-items: center; gap: 9px; border: 1px solid #e3e9e4; border-radius: 7px; background: #fff; }
+.field .auto-id-toggle input[type="checkbox"] { appearance: auto; flex: 0 0 14px; width: 14px; height: 14px; min-width: 14px; max-width: 14px; margin: 0; padding: 0; border: 0; box-shadow: none; transform: none; align-self: center; }
+.auto-id-toggle span { color: #516157; font-size: 11px; font-weight: 600; white-space: nowrap; }
 .field-heading { min-height: 15px; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
 .field-actions { display: flex; align-items: center; gap: 7px; }
 .clear-feature-button { padding: 0 2px; border: 0; color: #548568; background: transparent; font-size: 10px; line-height: 1.2; white-space: nowrap; }
@@ -166,7 +173,10 @@ h2 { margin: 4px 0 0; font: 700 17px/1.35 Manrope, sans-serif; letter-spacing: -
 .well-details-panel .well-fields { grid-template-columns: minmax(0, 1fr); }
 .well-details-panel .field-heading { flex-wrap: wrap; }
 .well-feature-fields:not(:empty) { margin-top: 10px; padding-top: 10px; border-top: 1px solid #edf1ee; }
-.well-feature-fields.is-scrollable { max-height: min(620px, 68vh); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-gutter: stable; padding-right: 8px; }
+.well-feature-fields.is-scrollable { max-height: min(310px, 55vh); overflow-y: scroll; overscroll-behavior: contain; scrollbar-width: auto; scrollbar-gutter: stable; padding-right: 8px; }
+.well-feature-fields.is-scrollable::-webkit-scrollbar { width: 10px; }
+.well-feature-fields.is-scrollable::-webkit-scrollbar-thumb { border: 2px solid #fff; border-radius: 10px; background: #a9b9ad; }
+.well-feature-fields.is-scrollable::-webkit-scrollbar-track { background: #f4f7f4; }
 .well-fields .field > span { margin-bottom: 4px; font-size: 11px; }
 .well-fields .field-heading > label { color: #7d8982; font-size: 11px; font-weight: 600; }
 .well-fields .field input { height: 31px; }
@@ -200,7 +210,15 @@ h2 { margin: 4px 0 0; font: 700 17px/1.35 Manrope, sans-serif; letter-spacing: -
 
 @media (max-width: 1050px) {
   .page-shell { width: min(100% - 36px, 900px); padding-top: 28px; }
-  .setup-panels { grid-template-columns: 1fr; }
+  .well-id-panel .setup-grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); }
+  .id-prefix-field { grid-column: 1; grid-row: 1; }
+  .id-start-field { grid-column: 2; grid-row: 1; }
+  .id-prefix-field input { max-width: 140px; }
+  .id-start-field input { max-width: 90px; }
+  .id-order-field, .id-scope-field, .auto-fill-field { grid-column: 1 / -1; }
+  .id-order-field { grid-row: 2; }
+  .id-scope-field { grid-row: 3; }
+  .auto-fill-field { grid-row: 4; }
   .workspace-grid { grid-template-columns: minmax(0, 1fr) 276px; gap: 11px; }
   .topbar { padding: 0 18px; }
   .top-actions { gap: 5px; }
@@ -211,6 +229,7 @@ h2 { margin: 4px 0 0; font: 700 17px/1.35 Manrope, sans-serif; letter-spacing: -
   .plate-actions { justify-content: flex-start; }
 }
 @media (max-width: 760px) {
+  .setup-panels { grid-template-columns: 1fr; }
   .topbar { height: auto; min-height: 66px; padding: 12px 15px; align-items: flex-start; }
   .top-actions { justify-content: end; flex-wrap: wrap; }
   .top-actions .button, .file-button { min-height: 33px; font-size: 11px; }
@@ -220,8 +239,6 @@ h2 { margin: 4px 0 0; font: 700 17px/1.35 Manrope, sans-serif; letter-spacing: -
   .export-actions { margin-top: 14px; flex-wrap: wrap; }
   .project-bar { align-items: stretch; flex-direction: column; }
   .plate-actions { justify-content: start; }
-  .well-id-actions { width: 100%; }
-  .well-id-actions .button { flex: 1 1 220px; }
   .workspace-grid { grid-template-columns: 1fr; }
   .side-column { grid-template-columns: 1fr; align-items: start; }
   .plate-panel { padding: 15px 13px 13px; }
@@ -234,8 +251,9 @@ h2 { margin: 4px 0 0; font: 700 17px/1.35 Manrope, sans-serif; letter-spacing: -
   .page-shell { width: calc(100% - 22px); }
   .side-column { grid-template-columns: 1fr; }
   .multi-plate-form-grid { grid-template-columns: 1fr; }
-  .well-id-controls { grid-template-columns: 1fr; }
-  .well-id-controls > * { grid-column: 1 / -1; }
+  .id-order-field, .id-scope-field { grid-column: 1 / -1; }
+  .id-scope-field { grid-row: 3; }
+  .auto-fill-field { grid-row: 4; }
   .selection-toolbar { flex-wrap: wrap; padding-bottom: 7px; }
   .selection-toolbar > span { flex-basis: 100%; }
   .map-legend { display: none; }

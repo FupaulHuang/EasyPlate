@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <title>EasyPlate · Plate layout designer</title>
-  <link rel="stylesheet" href="styles.css">
-  <script src="app.js" defer></script>
+  <link rel="stylesheet" href="styles.css?v=0.1.1">
+  <script src="app.js?v=0.1.1" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -71,27 +71,24 @@
         </div>
       </section>
 
-      <section class="panel well-id-panel">
-        <div class="well-id-header">
+      <section class="setup-panel panel well-id-panel">
+        <div class="panel-heading">
           <div><div class="section-kicker">WELL IDS</div><h2>Automatic well IDs</h2></div>
-          <label class="checkbox-field auto-id-toggle"><input id="auto-fill-ids" type="checkbox"><span>Automatically fill all well IDs</span></label>
         </div>
-        <div class="well-id-controls">
+        <div class="setup-grid">
           <label class="field id-prefix-field"><span>Prefix</span><input id="id-prefix" type="text" value="well_dt_" autocomplete="off"></label>
           <label class="field id-start-field"><span>Start at</span><input id="id-start" type="number" min="0" step="1" value="1"></label>
           <label class="field id-order-field"><span>Numbering order</span>
-            <select id="numbering-order"><option value="column">Column-first</option><option value="row">Row-first</option></select>
+            <select id="numbering-order" title="Column-first numbers down rows; Row-first numbers across columns"><option value="column">Column-first</option><option value="row">Row-first</option></select>
           </label>
           <label class="field id-scope-field"><span>Across plates</span>
-            <select id="numbering-scope"><option value="reset">Restart per plate</option><option value="continue">Continue</option></select>
+            <select id="numbering-scope" title="Restart numbering on each plate or continue across the project"><option value="reset">Restart</option><option value="continue">Continue</option></select>
           </label>
+          <div class="field auto-fill-field"><span>Automatic fill</span><label class="checkbox-field auto-id-toggle"><input id="auto-fill-ids" type="checkbox"><span>Auto-fill IDs</span></label></div>
         </div>
-        <div class="well-id-footer">
-          <p class="hint well-id-hint">Column-first numbers down rows; Row-first runs across columns. Numbering can restart per plate or continue through the project. Generated IDs skip existing values; Well ID stays editable.</p>
-          <div class="well-id-actions">
-            <button id="generate-selected-ids-button" class="button button-quiet" type="button">Generate IDs for selected wells</button>
-            <button id="generate-ids-button" class="button button-soft" type="button">Regenerate all plate IDs</button>
-          </div>
+        <div class="setup-actions well-id-actions">
+          <button id="generate-selected-ids-button" class="button button-quiet" type="button">Generate selected IDs</button>
+          <button id="generate-ids-button" class="button button-soft" type="button">Regenerate all IDs</button>
         </div>
       </section>
     </div>
