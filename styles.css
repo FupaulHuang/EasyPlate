@@ -61,12 +61,12 @@ h1 { margin-bottom: 8px; font: 700 clamp(25px, 3vw, 32px)/1.2 Manrope, sans-seri
 .plate-tab.active { color: #236d4c; background: #edf7f0; border-color: #dceee2; }
 .plate-actions { align-self: end; flex-wrap: wrap; }
 .setup-panel { margin-bottom: 14px; padding: 17px 19px 19px; }
-.well-id-panel { margin-bottom: 14px; padding: 16px 19px; }
-.well-id-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 13px; }
-.well-id-controls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: end; }
+.well-id-panel { margin-bottom: 14px; padding: 17px 19px 19px; }
+.well-id-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.well-id-controls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 11px; align-items: end; }
 .well-id-controls > * { min-width: 0; }
-.id-order-field, .id-scope-field, .well-id-controls > button { grid-column: span 2; }
-.well-id-controls > button { width: 100%; }
+.id-order-field, .id-scope-field, .well-id-controls > button { grid-column: auto; }
+.well-id-controls > button { width: 100%; min-height: 38px; padding: 5px 8px; white-space: normal; line-height: 1.2; }
 .well-id-hint { margin-top: 12px; color: #7d8982; }
 .well-details-panel { padding: 16px; }
 .panel-heading, .plate-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 15px; }
@@ -205,6 +205,12 @@ h2 { margin: 4px 0 0; font: 700 17px/1.35 Manrope, sans-serif; letter-spacing: -
   .top-actions { gap: 5px; }
   .top-actions .button { padding: 0 9px; }
   .setup-grid { grid-template-columns: 1.2fr 1fr 65px 70px; }
+  .well-id-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .auto-id-toggle { grid-column: 1 / -1; }
+  .intro-row { display: block; }
+  .export-actions { margin-top: 14px; flex-wrap: wrap; }
+  .project-bar { align-items: stretch; flex-direction: column; }
+  .plate-actions { justify-content: flex-start; }
 }
 @media (max-width: 760px) {
   .topbar { height: auto; min-height: 66px; padding: 12px 15px; align-items: flex-start; }
@@ -217,7 +223,6 @@ h2 { margin: 4px 0 0; font: 700 17px/1.35 Manrope, sans-serif; letter-spacing: -
   .project-bar { align-items: stretch; flex-direction: column; }
   .plate-actions { justify-content: start; }
   .setup-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .well-id-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .id-order-field, .id-scope-field, .well-id-controls > button { grid-column: 1 / -1; }
   .workspace-grid { grid-template-columns: 1fr; }
   .side-column { grid-template-columns: 1fr; align-items: start; }
