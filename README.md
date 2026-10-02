@@ -2,6 +2,10 @@
 
 EasyPlate is a local browser tool for planning sample plate layouts, assigning well metadata, and exporting plate annotations and maps. It serves only on `127.0.0.1`; imported table contents are processed on this computer.
 
+![EasyPlate open in a browser, showing plate setup, well IDs, the plate preview, and well details](docs/easyplate-browser.png)
+
+*EasyPlate with a fresh 96-well plate in a browser.*
+
 ## Requirements
 
 - Python 3.10 or newer (`python3` on macOS/Linux or `python` on Windows).
