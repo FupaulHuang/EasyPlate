@@ -52,44 +52,49 @@
       </div>
     </section>
 
-    <section class="setup-panel panel">
-      <div class="panel-heading">
-        <div><div class="section-kicker">PLATE SETUP</div><h2>Plate details</h2></div>
-        <span id="save-status" class="save-status"><span class="save-dot"></span> Saved in this browser</span>
-      </div>
-      <div class="setup-grid">
-        <label class="field"><span>Plate label</span><input id="plate-label" type="text" autocomplete="off" placeholder="e.g. BL_P1"></label>
-        <label class="field"><span>Group</span><input id="plate-group" type="text" autocomplete="off" placeholder="Optional"></label>
-        <label class="field field-small"><span>Rows</span><input id="plate-rows" type="number" min="1" max="40" step="1"></label>
-        <label class="field field-small"><span>Columns</span><input id="plate-columns" type="number" min="1" max="48" step="1"></label>
-        <label class="field"><span>Sample index</span><input id="plate-sample-index" type="text" autocomplete="off" placeholder="Optional"></label>
-        <label class="field"><span>Source sample</span><input id="plate-source-sample" type="text" autocomplete="off" placeholder="Optional"></label>
-      </div>
-      <div class="setup-actions">
-        <button id="apply-plate-to-all-button" class="button button-soft" type="button">Apply this plate's layout and metadata to all plates</button>
-      </div>
-    </section>
+    <div class="setup-panels">
+      <section class="setup-panel panel">
+        <div class="panel-heading">
+          <div><div class="section-kicker">PLATE SETUP</div><h2>Plate details</h2></div>
+          <span id="save-status" class="save-status"><span class="save-dot"></span> Saved in this browser</span>
+        </div>
+        <div class="setup-grid">
+          <label class="field"><span>Plate label</span><input id="plate-label" type="text" autocomplete="off" placeholder="e.g. BL_P1"></label>
+          <label class="field"><span>Group</span><input id="plate-group" type="text" autocomplete="off" placeholder="Optional"></label>
+          <label class="field field-small"><span>Rows</span><input id="plate-rows" type="number" min="1" max="40" step="1"></label>
+          <label class="field field-small"><span>Columns</span><input id="plate-columns" type="number" min="1" max="48" step="1"></label>
+          <label class="field"><span>Sample index</span><input id="plate-sample-index" type="text" autocomplete="off" placeholder="Optional"></label>
+          <label class="field"><span>Source sample</span><input id="plate-source-sample" type="text" autocomplete="off" placeholder="Optional"></label>
+        </div>
+        <div class="setup-actions">
+          <button id="apply-plate-to-all-button" class="button button-soft" type="button">Apply this plate's layout and metadata to all plates</button>
+        </div>
+      </section>
 
-    <section class="panel well-id-panel">
-      <div class="well-id-header">
-        <div><div class="section-kicker">WELL IDS</div><h2>Automatic well IDs</h2></div>
-        <span class="id-badge">ID</span>
-      </div>
-      <div class="well-id-controls">
-        <label class="checkbox-field auto-id-toggle"><input id="auto-fill-ids" type="checkbox"><span>Automatically fill all well IDs</span></label>
-        <label class="field id-prefix-field"><span>Prefix</span><input id="id-prefix" type="text" value="well_dt_" autocomplete="off"></label>
-        <label class="field id-start-field"><span>Start at</span><input id="id-start" type="number" min="0" step="1" value="1"></label>
-        <label class="field id-order-field"><span>Numbering order</span>
-          <select id="numbering-order"><option value="column">Down rows, then across columns</option><option value="row">Across rows, then down columns</option></select>
-        </label>
-        <label class="field id-scope-field"><span>Across plates</span>
-          <select id="numbering-scope"><option value="reset">Restart on each plate</option><option value="continue">Continue across project</option></select>
-        </label>
-        <button id="generate-selected-ids-button" class="button button-quiet" type="button">Generate IDs for selected wells</button>
-        <button id="generate-ids-button" class="button button-soft" type="button">Regenerate all plate IDs</button>
-      </div>
-      <p class="hint well-id-hint">Automatic fill is on by default. Selected ID generation uses the prefix and start number, skipping IDs already in use. Well ID stays available for manual editing.</p>
-    </section>
+      <section class="panel well-id-panel">
+        <div class="well-id-header">
+          <div><div class="section-kicker">WELL IDS</div><h2>Automatic well IDs</h2></div>
+          <label class="checkbox-field auto-id-toggle"><input id="auto-fill-ids" type="checkbox"><span>Automatically fill all well IDs</span></label>
+        </div>
+        <div class="well-id-controls">
+          <label class="field id-prefix-field"><span>Prefix</span><input id="id-prefix" type="text" value="well_dt_" autocomplete="off"></label>
+          <label class="field id-start-field"><span>Start at</span><input id="id-start" type="number" min="0" step="1" value="1"></label>
+          <label class="field id-order-field"><span>Numbering order</span>
+            <select id="numbering-order"><option value="column">Column-first</option><option value="row">Row-first</option></select>
+          </label>
+          <label class="field id-scope-field"><span>Across plates</span>
+            <select id="numbering-scope"><option value="reset">Restart per plate</option><option value="continue">Continue</option></select>
+          </label>
+        </div>
+        <div class="well-id-footer">
+          <p class="hint well-id-hint">Column-first numbers down rows; Row-first runs across columns. Numbering can restart per plate or continue through the project. Generated IDs skip existing values; Well ID stays editable.</p>
+          <div class="well-id-actions">
+            <button id="generate-selected-ids-button" class="button button-quiet" type="button">Generate IDs for selected wells</button>
+            <button id="generate-ids-button" class="button button-soft" type="button">Regenerate all plate IDs</button>
+          </div>
+        </div>
+      </section>
+    </div>
 
     <section class="workspace-grid">
       <section class="plate-panel panel" aria-label="Plate map">

@@ -60,21 +60,22 @@ h1 { margin-bottom: 8px; font: 700 clamp(25px, 3vw, 32px)/1.2 Manrope, sans-seri
 .plate-tab:hover { background: #f7f9f7; color: #3d5045; }
 .plate-tab.active { color: #236d4c; background: #edf7f0; border-color: #dceee2; }
 .plate-actions { align-self: end; flex-wrap: wrap; }
-.setup-panel { margin-bottom: 14px; padding: 17px 19px 19px; }
-.well-id-panel { margin-bottom: 14px; padding: 17px 19px 19px; }
-.well-id-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.well-id-controls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 11px; align-items: end; }
+.setup-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: stretch; margin-bottom: 14px; }
+.setup-panel, .well-id-panel { min-width: 0; padding: 17px 19px 19px; display: flex; flex-direction: column; }
+.well-id-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; margin-bottom: 14px; }
+.well-id-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; align-items: end; }
 .well-id-controls > * { min-width: 0; }
-.id-order-field, .id-scope-field, .well-id-controls > button { grid-column: auto; }
-.well-id-controls > button { width: 100%; min-height: 38px; padding: 5px 8px; white-space: normal; line-height: 1.2; }
-.well-id-hint { margin-top: 12px; color: #7d8982; }
+.well-id-footer { display: flex; flex-direction: column; gap: 10px; margin-top: auto; padding-top: 10px; }
+.well-id-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.well-id-actions .button { max-width: 100%; padding: 5px 11px; white-space: normal; line-height: 1.2; }
+.well-id-hint { margin: 0; color: #6e7c72; }
 .well-details-panel { padding: 16px; }
 .panel-heading, .plate-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 15px; }
 .panel-heading { margin-bottom: 14px; }
 h2 { margin: 4px 0 0; font: 700 17px/1.35 Manrope, sans-serif; letter-spacing: -.25px; }
 .save-status { display: inline-flex; align-items: center; gap: 7px; color: #85918a; font-size: 11px; }
-.setup-grid { display: grid; grid-template-columns: minmax(160px, 1.4fr) minmax(120px, 1fr) 74px 80px minmax(100px, .8fr) minmax(150px, 1.2fr); gap: 11px; }
-.setup-actions { margin-top: 13px; display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.setup-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
+.setup-actions { margin-top: auto; padding-top: 13px; display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 .field { display: block; min-width: 0; }
 .field > span { display: block; margin-bottom: 5px; color: #7d8982; font-size: 11px; font-weight: 600; }
 .field-label { display: block; margin-bottom: 5px; color: #7d8982; font-size: 11px; font-weight: 600; }
@@ -142,8 +143,7 @@ h2 { margin: 4px 0 0; font: 700 17px/1.35 Manrope, sans-serif; letter-spacing: -
 .window-dimensions .field > span { font-size: 11px; }
 .window-dimensions .field input { height: 30px; }
 .window-dimensions .field input:disabled { color: #aab3ad; background: #f5f7f5; }
-.id-badge { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 7px; color: #45805d; background: #edf6ef; font: 700 10px Manrope, sans-serif; }
-.auto-id-toggle { grid-column: span 2; margin: 0; min-height: 36px; padding: 8px 9px; display: flex; align-items: center; border: 1px solid #e7eee8; border-radius: 7px; background: #fbfdfb; }
+.auto-id-toggle { margin: 0; min-height: 36px; padding: 8px 9px; display: flex; align-items: center; border: 1px solid #e7eee8; border-radius: 7px; background: #fbfdfb; }
 .auto-id-toggle span { color: #516157; font-size: 11px; font-weight: 600; }
 .field-heading { min-height: 15px; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
 .field-actions { display: flex; align-items: center; gap: 7px; }
@@ -200,13 +200,11 @@ h2 { margin: 4px 0 0; font: 700 17px/1.35 Manrope, sans-serif; letter-spacing: -
 
 @media (max-width: 1050px) {
   .page-shell { width: min(100% - 36px, 900px); padding-top: 28px; }
+  .setup-panels { grid-template-columns: 1fr; }
   .workspace-grid { grid-template-columns: minmax(0, 1fr) 276px; gap: 11px; }
   .topbar { padding: 0 18px; }
   .top-actions { gap: 5px; }
   .top-actions .button { padding: 0 9px; }
-  .setup-grid { grid-template-columns: 1.2fr 1fr 65px 70px; }
-  .well-id-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .auto-id-toggle { grid-column: 1 / -1; }
   .intro-row { display: block; }
   .export-actions { margin-top: 14px; flex-wrap: wrap; }
   .project-bar { align-items: stretch; flex-direction: column; }
@@ -222,8 +220,8 @@ h2 { margin: 4px 0 0; font: 700 17px/1.35 Manrope, sans-serif; letter-spacing: -
   .export-actions { margin-top: 14px; flex-wrap: wrap; }
   .project-bar { align-items: stretch; flex-direction: column; }
   .plate-actions { justify-content: start; }
-  .setup-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .id-order-field, .id-scope-field, .well-id-controls > button { grid-column: 1 / -1; }
+  .well-id-actions { width: 100%; }
+  .well-id-actions .button { flex: 1 1 220px; }
   .workspace-grid { grid-template-columns: 1fr; }
   .side-column { grid-template-columns: 1fr; align-items: start; }
   .plate-panel { padding: 15px 13px 13px; }
@@ -277,7 +275,6 @@ h2 { font-size: 25.5px; }
 .feature-option { font-size: 16.5px; }
 .range-field > span, .range-field output { font-size: 16.5px; }
 .window-dimensions .field > span { font-size: 16.5px; }
-.id-badge { font-size: 15px; }
 .auto-id-toggle span { font-size: 16.5px; }
 .clear-feature-button, .remove-field-button { font-size: 15px; }
 .hint, .hint code { font-size: 15px; }
