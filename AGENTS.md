@@ -11,7 +11,7 @@ Use this file when an AI agent needs to launch or operate EasyPlate. See
 | Run source on Windows | Python 3.10+ as `python` (or through `py -3`) and a current browser with JavaScript enabled |
 | Clone the repository | Git, unless the project folder is already available |
 
-The browser executes `app.js` for the interactive app, so JavaScript must be
+The browser executes `app.js` and `xlsx.js` for the interactive app, so JavaScript must be
 enabled there. It has no separate JavaScript installation step. The server
 uses Python's standard library; there are no `pip` or npm dependencies, and
 Node.js is not a runtime requirement.
@@ -68,8 +68,13 @@ cannot create plates or trigger exports.
 2. Create plates with **New plate**, or import a CSV/TSV through the browser.
    Edit well IDs and metadata in **Well details**.
 3. Review the plate preview and any missing or duplicate well ID warning.
-4. Use **Save project** for a reusable JSON copy. **Export CSV** and
-   **Export plate PNG** download files through the browser. **Save PDF** opens
+4. Use **Lock selected** in Layout Preview to protect selected wells from edits,
+   and **Unlock selected** to make them editable again. Locked wells are saved
+   in project JSON; bulk actions skip them or require unlocking first.
+5. Use **Save project** for a reusable JSON copy. **Export CSV**,
+   **Export plate PNG**, and **Export layout XLSX** download files through the
+   browser. The XLSX has editable plate layouts and a Well data sheet; editing
+   it does not change the browser project. **Save PDF** opens
    the browser print flow, where the PDF destination must be selected.
 
 Downloads follow the browser's settings. Browser local storage and downloaded

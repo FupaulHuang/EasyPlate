@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <title>EasyPlate · Plate layout designer</title>
-  <link rel="stylesheet" href="styles.css?v=0.1.1">
-  <script src="app.js?v=0.1.1" defer></script>
+  <link rel="stylesheet" href="styles.css?v=0.1.2">
+  <script src="xlsx.js?v=0.1.2" defer></script>
+  <script src="app.js?v=0.1.2" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -33,6 +34,7 @@
       <div class="export-actions">
         <button id="export-png-button" class="button button-quiet" type="button"><span class="button-icon">▧</span> Export plate PNG</button>
         <button id="export-csv-button" class="button button-secondary" type="button">Export CSV</button>
+        <button id="export-xlsx-button" class="button button-quiet" type="button">Export layout XLSX</button>
         <button id="export-pdf-button" class="button button-quiet" type="button"><span class="button-icon">▤</span> Save PDF</button>
       </div>
     </section>
@@ -111,11 +113,12 @@
           <label class="checkbox-field preview-id-toggle"><input id="show-well-id" type="checkbox" checked><span>Show Well ID</span></label>
           <button id="select-all-wells-button" class="text-button" type="button">Select all wells</button>
           <button id="invert-selection-button" class="text-button" type="button" title="Toggle selection for every well in the visible window">Invert selection</button>
+          <button id="toggle-well-lock-button" class="text-button lock-button" type="button">Lock selected</button>
         </div>
         <div class="grid-scroll">
           <div id="plate-grid" class="plate-grid" role="grid" aria-label="Editable plate grid"></div>
         </div>
-        <div class="plate-footnote"><span class="footnote-mark">i</span> Drag across wells to select a region. Shift-click adds individual wells. Paste a spreadsheet range into the focused plate.</div>
+        <div class="plate-footnote"><span class="footnote-mark">i</span> Drag across wells to select a region. Shift-click adds individual wells. Locked wells stay visible but cannot be edited until unlocked.</div>
       </section>
 
       <aside class="side-column">

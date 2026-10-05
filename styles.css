@@ -26,8 +26,10 @@ button { cursor: pointer; }
 .brand-mark i { border-radius: 2px; background: #3b8c66; }
 .brand-mark i:nth-child(2), .brand-mark i:nth-child(3) { background: #85bd9c; }
 .top-actions, .export-actions, .plate-actions { display: flex; align-items: center; gap: 8px; }
+.export-actions { flex-wrap: wrap; justify-content: flex-end; }
 .button { border: 1px solid transparent; min-height: 38px; padding: 0 13px; border-radius: 8px; font-size: 13px; font-weight: 600; white-space: nowrap; transition: background .15s, border-color .15s, transform .15s; }
 .button:active { transform: translateY(1px); }
+.button:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 .button-quiet { color: #47544c; background: #fff; border-color: #e4e9e5; }
 .button-quiet:hover { background: #f8faf8; border-color: #ccd8cf; }
 .button-secondary { color: #fff; background: #347b5a; border-color: #347b5a; box-shadow: 0 2px 4px rgba(39, 124, 90, .14); }
@@ -99,17 +101,21 @@ h2 { margin: 4px 0 0; font: 700 17px/1.35 Manrope, sans-serif; letter-spacing: -
 .window-nav-button { width: 25px; height: 25px; padding: 0; border: 1px solid #e2e9e3; border-radius: 6px; color: #367a56; background: #fff; font-size: 17px; line-height: 1; }
 .window-nav-button:disabled { color: #bdc5bf; background: #f7f9f7; }
 .legend-swatch { width: 11px; height: 11px; border-radius: 3px; background: #dceddd; border: 1px solid #d2e8d5; }
-.selection-toolbar { min-height: 38px; margin: 0 -1px 9px; padding: 0 2px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid #eff2ef; color: #89928d; font-size: 11px; }
+.selection-toolbar { min-height: 38px; margin: 0 -1px 9px; padding: 0 2px 7px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; border-bottom: 1px solid #eff2ef; color: #89928d; font-size: 11px; }
 .selection-toolbar > span { margin-right: auto; color: #56655b; font-weight: 600; }
 .preview-id-toggle { padding: 0; white-space: nowrap; }
 .text-button { padding: 4px 0; border: 0; color: #39815c; background: transparent; font-size: 11px; font-weight: 600; }
 .text-button:hover { color: #1f6443; text-decoration: underline; }
+.text-button:disabled { color: #a9b2ab; cursor: default; text-decoration: none; }
+.lock-button { white-space: nowrap; }
 .grid-scroll { width: 100%; overflow: auto; padding: 3px 2px 10px; }
 .plate-grid { display: grid; gap: 6px; min-width: max-content; user-select: none; touch-action: pan-x pan-y; }
 .axis-cell { display: flex; align-items: center; justify-content: center; color: #a0aaa3; font-size: 10px; font-weight: 600; }
 .well-cell { position: relative; min-width: var(--well-size, 60px); width: var(--well-size, 60px); height: var(--well-size, 60px); overflow: hidden; padding: 7px 5px 5px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; border: 1px solid #e6ebe7; border-radius: 8px; background: #fbfcfb; color: #546258; transition: border-color .12s, box-shadow .12s, transform .12s; }
 .well-cell:hover { z-index: 1; border-color: #9bbda5; box-shadow: 0 3px 9px rgba(31, 87, 53, .09); transform: translateY(-1px); }
 .well-cell.selected { z-index: 2; border: 2px solid #3c9464; box-shadow: 0 0 0 2px rgba(61, 148, 100, .12); }
+.well-cell.locked { border-color: #c59762; }
+.well-cell.locked.selected { border-color: #ad713d; box-shadow: 0 0 0 2px rgba(173, 113, 61, .15); }
 .well-cell.empty .well-label { color: #b0b8b2; }
 .well-label { max-width: 100%; overflow: hidden; color: #304237; font-size: var(--well-font-size, 10px); font-weight: 700; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
 .well-cell.all-features { justify-content: flex-start; gap: 3px; padding-top: 8px; }
@@ -156,6 +162,7 @@ h2 { margin: 4px 0 0; font: 700 17px/1.35 Manrope, sans-serif; letter-spacing: -
 .field-actions { display: flex; align-items: center; gap: 7px; }
 .clear-feature-button { padding: 0 2px; border: 0; color: #548568; background: transparent; font-size: 10px; line-height: 1.2; white-space: nowrap; }
 .clear-feature-button:hover { color: #276e4f; text-decoration: underline; }
+.clear-feature-button:disabled, .remove-field-button:disabled { color: #b6beb8; cursor: not-allowed; text-decoration: none; }
 .field-heading > span { margin-bottom: 0 !important; }
 .remove-field-button { padding: 0 3px; border: 0; color: #a0aaa3; background: transparent; font-size: 10px; line-height: 1.2; }
 .remove-field-button:hover { color: #b14f45; }

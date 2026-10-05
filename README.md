@@ -4,7 +4,7 @@ EasyPlate is a local browser tool for planning sample plate layouts, assigning w
 
 ![EasyPlate open in a browser, showing plate setup, well IDs, the plate preview, and well details](docs/easyplate-browser.png)
 
-*EasyPlate with a fresh 96-well plate in a browser.*
+*EasyPlate with a 96-well plate and one locked well in a browser.*
 
 ## Requirements
 
@@ -14,7 +14,7 @@ EasyPlate is a local browser tool for planning sample plate layouts, assigning w
 - Bash only for the `start.sh` convenience launcher on macOS/Linux. Windows
   can run `server.py` directly from PowerShell.
 
-The browser runs `app.js` for plate editing, import, and export; no separate
+The browser runs `app.js` and `xlsx.js` for plate editing, import, and export; no separate
 JavaScript installation is needed. The local server uses only Python's standard
 library. It does not need `pip`, a virtual environment, Node.js, or npm to run.
 Git is needed only if you clone the repository rather than download it as a ZIP
@@ -144,6 +144,7 @@ the same computer. `127.0.0.1` refers to that computer only.
 - New plates use 8 rows × 12 columns by default. The editor supports 1–40 rows and 1–48 columns.
 - Automatic well ID fill is enabled by default and assigns an ID to every well, starting with `well_dt_1`. Turning **Auto-fill IDs** off clears IDs from every well; turning it on fills missing IDs across the project. Select wells and use **Generate selected IDs** to generate IDs using the configured prefix and start number, skipping IDs already in use. **Regenerate all IDs** replaces IDs across the project after confirmation. **Column-first** numbers down rows before moving across columns; **Row-first** numbers across columns before moving down rows. Choose whether numbering restarts or continues across plates. Well ID is always present in **Well details** for manual editing.
 - **Plate Setup** stays on the left and **Well IDs** on the right through laptop-sized windows; they stack on narrow screens. The panels have matching spacing, while Well IDs gives shorter inputs to Prefix and Start at and wider space to numbering controls.
+- Select wells in **Layout Preview** and choose **Lock selected** to protect their IDs, occupancy, and metadata. An amber border marks each locked well. Select locked wells and choose **Unlock selected** to edit them again. Edits to a mixed selection apply only to unlocked wells; bulk clear, paste, and ID generation also skip locked wells. Unlock wells before deleting them, removing a metadata field, resetting the project, or replacing it with another project. Locks are saved in the project JSON.
 - **Well Details** sits beside Layout Preview, with the **Display** panel below it. Well ID and occupancy remain visible above the metadata fields. When there are more than five metadata features, the list shows about five at a time; use its scrollbar to reach the rest. **Clear selected values** clears the selected wells' ID, barcode, occupancy, and metadata. If automatic fill is on, IDs are assigned again to those wells.
 - **Invert selection** toggles every well in the visible window. In windowed view, selections in other windows are preserved.
 - **Select all wells** selects every well on the current plate, including wells in other windows. When all wells are selected, the button becomes **Deselect all wells**.
@@ -165,6 +166,7 @@ the same computer. `127.0.0.1` refers to that computer only.
 
 - **Export CSV** downloads `plate_layout_annotations.csv`, with one row per physical position (including empty positions), the reference annotation columns, and every active feature that has at least one value, whether or not that feature is displayed in the figure. It also generates `well_name_label` by joining each well's nonempty active metadata values with `_`, excluding Well ID. Optional feature columns and `group`, `sample_index`, or `source_sample` are omitted individually when empty (`None`/`NA`) across the whole project; missing cells in retained columns are exported blank. The current display selection does not affect CSV columns.
 - **Export plate PNG** downloads a high-resolution image of the current plate window with selected feature text wrapped in each well.
+- **Export layout XLSX** downloads an editable workbook with a colored layout sheet for each full plate and a **Well data** sheet containing individual well values. Layout colors and displayed labels follow the current preview; amber borders mark wells locked in EasyPlate. The layout and Well data sheets can be edited independently. Workbook edits do not update the browser project.
 - **Save PDF** opens a print-ready view. Large plates are paged into manageable row/column sections; when many features are selected, the PDF splits them into feature groups so labels and values remain visible. In the browser print dialog, choose **Save as PDF**.
 - **Save project** downloads a JSON copy. **Open project** restores one. The current project also autosaves in browser storage for this local address.
 
@@ -172,7 +174,7 @@ The CSV export reports repeated or missing well IDs before downloading and lets 
 
 ## Project files
 
-`index.html`, `styles.css`, and `app.js` are the browser interface. `server.py`
+`index.html`, `styles.css`, `app.js`, and `xlsx.js` are the browser interface. `server.py`
 serves them on this computer; `start.sh` launches the server and opens a
 browser on macOS/Linux. See [AGENTS.md](AGENTS.md) for AI agent run instructions.
 Keep real sample metadata and exported projects out of the repository; use

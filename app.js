@@ -6,7 +6,7 @@
   const LEGACY_DEFAULT_FIELDS = new Set(['replicate', 'test']);
   const RESERVED_FIELDS = new Set([
     'group', 'plate_id', 'sample_index', 'source_sample', 'plate_position', 'plate_row',
-    'plate_column', 'is_occupied', 'barcode', 'well_id', 'well_name', 'well_name_label',
+    'plate_column', 'is_occupied', 'locked', 'barcode', 'well_id', 'well_name', 'well_name_label',
     'well_name_fill_color', 'well_number_label', 'well_number_fill_color',
     'display_feature', 'display_label', 'display_fill_color', '__all__', 'x', 'y', 'total_well'
   ]);
@@ -69,7 +69,7 @@
       rowLabels: Array.from({ length: rows }, (_, i) => lettersForRow(i)),
       columnLabels: Array.from({ length: columns }, (_, i) => String(i + 1)),
       wells: Array.from({ length: rows }, () => Array.from({ length: columns }, () => ({
-        well_id: '', barcode: '', is_occupied: false, values: defaultValues(allMetadataFields())
+        well_id: '', barcode: '', is_occupied: false, locked: false, values: defaultValues(allMetadataFields())
       })))
     };
     if (settings.autoFillWellIds !== false) assignIdsToPlate(plate, 0, settings);
@@ -123,6 +123,7 @@
         well_id: String(source.well_id ?? ''),
         barcode: String(savedBarcode),
         is_occupied: source.is_occupied == null ? inferredOccupied : Boolean(source.is_occupied),
+        locked: source.locked === true,
         values: Object.fromEntries(Object.entries(values).map(([key, value]) => [key, value == null ? '' : String(value)]))
       };
     }));
@@ -426,6 +427,23 @@
     return plate.wells[r]?.[c];
   }
 
+  function lockedWells(plates = project.plates) {
+    return plates.reduce((count, plate) => count + plate.wells.reduce((rowCount, row) =>
+      rowCount + row.filter((well) => well.locked).length, 0), 0);
+  }
+
+  function editableSelection() {
+    const plate = getPlate();
+    return selectionCoordinates().filter(([r, c]) => !plate.wells[r][c].locked);
+  }
+
+  function requireUnlockedWells(plates, action) {
+    const count = lockedWells(plates);
+    if (!count) return true;
+    showToast(`Unlock ${count} well${count === 1 ? '' : 's'} before ${action}.`);
+    return false;
+  }
+
   function numberingCoordinates(plate) {
     const coords = [];
     if (project.settings.numberingOrder === 'row') {
@@ -436,13 +454,20 @@
     return coords;
   }
 
-  function assignIdsToPlate(plate, offset, settings = project.settings) {
+  function assignIdsToPlate(plate, offset, settings = project.settings, reservedIds = null) {
     let number = Math.max(0, Number(settings.idStart) || 0) + offset;
     const prefix = String(settings.idPrefix ?? 'well_dt_');
+    const used = reservedIds || new Set(plate.wells.flat().filter((well) => well.locked && well.well_id).map((well) => well.well_id));
     const coords = settings.numberingOrder === 'row'
       ? Array.from({ length: plate.rows * plate.columns }, (_, i) => [Math.floor(i / plate.columns), i % plate.columns])
       : Array.from({ length: plate.rows * plate.columns }, (_, i) => [i % plate.rows, Math.floor(i / plate.rows)]);
-    for (const [r, c] of coords) plate.wells[r][c].well_id = `${prefix}${number++}`;
+    for (const [r, c] of coords) {
+      const well = plate.wells[r][c];
+      if (well.locked) continue;
+      while (used.has(`${prefix}${number}`)) number++;
+      well.well_id = `${prefix}${number++}`;
+      used.add(well.well_id);
+    }
   }
 
   function assignUniqueIdsToPlate(plate, otherPlates, startingNumber, settings = project.settings) {
@@ -454,6 +479,7 @@
     }
     let number = Math.max(0, Number(settings.idStart) || 0) + startingNumber;
     for (const [r, c] of numberingCoordinates(plate)) {
+      if (plate.wells[r][c].locked) continue;
       while (used.has(`${prefix}${number}`)) number++;
       plate.wells[r][c].well_id = `${prefix}${number}`;
       used.add(`${prefix}${number++}`);
@@ -596,11 +622,11 @@
         const isMulti = selectedFeatures.length > 1;
         const value = displayLabelFor(well);
         const lines = isMulti ? selectedFeatureLines(well) : [];
-        cell.type = 'button'; cell.className = `well-cell${isMulti ? ' all-features' : ''}${wellIsOccupied(well) ? '' : ' empty'}${selectedKeys.has(`${r},${c}`) ? ' selected' : ''}`;
+        cell.type = 'button'; cell.className = `well-cell${isMulti ? ' all-features' : ''}${wellIsOccupied(well) ? '' : ' empty'}${selectedKeys.has(`${r},${c}`) ? ' selected' : ''}${well.locked ? ' locked' : ''}`;
         if (isMulti) cell.style.height = `${multiFeatureCellHeight(lines.length)}px`;
         cell.dataset.r = String(r); cell.dataset.c = String(c);
         cell.setAttribute('role', 'gridcell'); cell.tabIndex = selectedKeys.has(`${r},${c}`) || (!selectedKeys.size && r === view.rowStart && c === view.columnStart) ? 0 : -1;
-        cell.setAttribute('aria-label', `${positionLabel(plate, r, c)} · ${well.well_id || 'No well ID'}${value ? ` · ${value}` : ''}`);
+        cell.setAttribute('aria-label', `${positionLabel(plate, r, c)} · ${well.well_id || 'No well ID'}${value ? ` · ${value}` : ''}${well.locked ? ' · Locked' : ''}`);
         cell.style.backgroundColor = displayColorFor(well);
         const mark = wellIsOccupied(well) ? '<i class="well-mark" aria-hidden="true"></i>' : '';
         const caption = wellCaption(plate, r, c, well);
@@ -627,9 +653,10 @@
       const lineCount = Math.max(1, selectedFeatureLines(well).length);
       cell.style.height = `${multiFeatureCellHeight(lineCount)}px`;
     } else cell.style.height = '';
-    cell.setAttribute('aria-label', `${positionLabel(plate, r, c)} · ${well.well_id || 'No well ID'}${value ? ` · ${value}` : ''}`);
+    cell.setAttribute('aria-label', `${positionLabel(plate, r, c)} · ${well.well_id || 'No well ID'}${value ? ` · ${value}` : ''}${well.locked ? ' · Locked' : ''}`);
     cell.style.backgroundColor = displayColorFor(well);
     cell.classList.toggle('empty', !wellIsOccupied(well));
+    cell.classList.toggle('locked', Boolean(well.locked));
     const mark = cell.querySelector('.well-mark');
     if (wellIsOccupied(well) && !mark) cell.insertAdjacentHTML('afterbegin', '<i class="well-mark" aria-hidden="true"></i>');
     if (!wellIsOccupied(well) && mark) mark.remove();
@@ -639,13 +666,25 @@
   function updateSelectionSummary() {
     const count = selectedKeys.size;
     const plate = getPlate();
-    $('#selection-summary').textContent = `${count} well${count === 1 ? '' : 's'} selected`;
+    const locked = selectionCoordinates().filter(([r, c]) => plate.wells[r][c].locked).length;
+    $('#selection-summary').textContent = `${count} well${count === 1 ? '' : 's'} selected${locked ? ` · ${locked} locked` : ''}`;
     $('#selected-count').textContent = String(count);
+    const lockButton = $('#toggle-well-lock-button');
+    lockButton.disabled = count === 0;
+    lockButton.textContent = count > 0 && locked === count ? 'Unlock selected' : 'Lock selected';
+    lockButton.title = count === 0 ? 'Select wells to lock or unlock'
+      : locked === count ? 'Unlock the selected wells for editing' : 'Protect the selected wells from changes';
+    $('#clear-selected-values-button').disabled = count === locked;
+    $('#generate-selected-ids-button').disabled = count === locked;
     const [r, c] = anchorCoordinate();
     $('#select-all-wells-button').textContent = count === plate.rows * plate.columns ? 'Deselect all wells' : 'Select all wells';
     $('#selected-well-title').textContent = count === 0 ? 'No wells selected' : count === 1 ? positionLabel(plate, r, c) : `${count} wells selected`;
     $('#selected-help').textContent = count === 0
       ? 'Select wells in Layout Preview to edit their values.'
+      : locked === count
+      ? `${count === 1 ? 'This well is' : 'These wells are'} locked. Use Unlock selected in Layout Preview to edit ${count === 1 ? 'it' : 'them'}.`
+      : locked > 0
+      ? `Edits apply to the ${count - locked} unlocked well${count - locked === 1 ? '' : 's'}; ${locked} locked well${locked === 1 ? ' is' : 's are'} skipped.`
       : count === 1
       ? `${wellAt(plate, r, c)?.well_id || 'No well ID'} · Well ID is required; other fields are optional.`
       : 'Edits apply to every selected well. Mixed values appear blank.';
@@ -665,10 +704,12 @@
     const actions = document.createElement('div'); actions.className = 'field-actions';
     const clear = document.createElement('button'); clear.type = 'button'; clear.className = 'clear-feature-button';
     clear.textContent = 'Clear values'; clear.title = `Clear ${featureLabel(field)} values from every well`;
+    clear.disabled = editableSelection().length === 0;
     clear.addEventListener('click', () => clearFeatureAcrossAllWells(field)); actions.append(clear);
     if (field !== 'well_id') {
       const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'remove-field-button';
       remove.textContent = 'Remove'; remove.title = `Remove ${featureLabel(field)} from all wells`;
+      remove.disabled = lockedWells() > 0;
       remove.addEventListener('click', () => removeOptionalField(field)); actions.append(remove);
     }
     heading.append(actions);
@@ -680,8 +721,9 @@
     const same = values.every((value) => value === values[0]);
     input.value = multiple || !same ? '' : (values[0] || '');
     if (multiple && !same) input.placeholder = 'Mixed values';
+    input.disabled = editableSelection().length === 0;
     input.addEventListener('input', () => {
-      for (const [r, c] of selectionCoordinates()) {
+      for (const [r, c] of editableSelection()) {
         const target = wellAt(getPlate(), r, c);
         setField(target, field, input.value);
         if (input.value.trim() && fieldOccupiesWell(field)) target.is_occupied = true;
@@ -717,8 +759,9 @@
     const occupiedCount = coords.filter(([rr, cc]) => wellIsOccupied(wellAt(plate, rr, cc))).length;
     checkbox.checked = occupiedCount > 0;
     checkbox.indeterminate = occupiedCount > 0 && occupiedCount < coords.length;
+    checkbox.disabled = editableSelection().length === 0;
     checkbox.addEventListener('change', () => {
-      for (const [rr, cc] of selectionCoordinates()) { wellAt(plate, rr, cc).is_occupied = checkbox.checked; updateGridCell(rr, cc); }
+      for (const [rr, cc] of editableSelection()) { wellAt(plate, rr, cc).is_occupied = checkbox.checked; updateGridCell(rr, cc); }
       saveProject(); renderInspector();
     });
     occupiedLabel.append(checkbox, document.createTextNode(' Mark selected wells as occupied'));
@@ -742,6 +785,7 @@
   }
 
   function setField(well, field, value) {
+    if (well.locked) return false;
     const text = String(value ?? '');
     if (field === 'well_name_label') return;
     if (field === 'well_id') well.well_id = text;
@@ -751,6 +795,7 @@
       if (!metadataFields().includes(field)) addOptionalField(field);
       well.values[field] = text;
     }
+    return true;
   }
 
   function addOptionalField(inputName) {
@@ -758,13 +803,16 @@
     if (!isAllowedOptionalField(field)) return '';
     if (!project.fields.includes(field)) {
       project.fields.push(field);
-      if (field !== 'barcode') for (const plate of project.plates) for (const row of plate.wells) for (const well of row) well.values[field] ??= '';
+      if (field !== 'barcode') for (const plate of project.plates) for (const row of plate.wells) for (const well of row) {
+        if (!well.locked) well.values[field] ??= '';
+      }
     }
     return field;
   }
 
   function removeOptionalField(field) {
     if (!project.fields.includes(field)) return;
+    if (!requireUnlockedWells(project.plates, `removing ${featureLabel(field)}`)) return;
     const hasValues = project.plates.some((plate) => plate.wells.some((row) => row.some((well) =>
       String(field === 'barcode' ? well.barcode : well.values[field] || '').trim() !== ''
     )));
@@ -780,19 +828,22 @@
 
   function clearFeatureAcrossAllWells(field) {
     if (field === 'well_id' && project.settings.autoFillWellIds) {
-      const confirmed = window.confirm('Clear all Well ID values? Automatic fill will be turned off and stay off.');
+      const confirmed = window.confirm('Clear Well ID values in unlocked wells? Automatic fill will be turned off and stay off.');
       if (!confirmed) return;
       project.settings.autoFillWellIds = false;
       $('#auto-fill-ids').checked = false;
-    } else if (!window.confirm(`Clear ${featureLabel(field)} values from every well? The feature will remain available.`)) {
+    } else if (!window.confirm(`Clear ${featureLabel(field)} values from every unlocked well? The feature will remain available.`)) {
       return;
     }
+    let cleared = 0;
     for (const plate of project.plates) for (const row of plate.wells) for (const well of row) {
+      if (well.locked) continue;
       if (field === 'well_id') well.well_id = '';
       else if (field === 'barcode') well.barcode = '';
       else well.values[field] = '';
+      cleared++;
     }
-    renderAll(); showToast(`${featureLabel(field)} values cleared from all wells.`);
+    renderAll(); showToast(`${featureLabel(field)} values cleared from ${cleared} unlocked well${cleared === 1 ? '' : 's'}${lockedWells() ? '; locked wells were skipped' : ''}.`);
   }
 
   function bindEvents() {
@@ -850,14 +901,17 @@
       if (event.target.checked) {
         for (const plate of project.plates) assignMissingIds(plate);
       } else {
-        for (const plate of project.plates) for (const row of plate.wells) for (const well of row) well.well_id = '';
+        for (const plate of project.plates) for (const row of plate.wells) for (const well of row) {
+          if (!well.locked) well.well_id = '';
+        }
       }
       renderGrid(); renderInspector(); saveProject();
-      showToast(event.target.checked ? 'Automatic fill assigned IDs to all wells.' : 'Automatic fill is off; all well IDs were cleared.');
+      showToast(`${event.target.checked ? 'Automatic fill assigned missing IDs' : 'Automatic fill cleared IDs'} in unlocked wells${lockedWells() ? '; locked wells were skipped' : ''}.`);
     });
     $('#generate-selected-ids-button').addEventListener('click', generateSelectedIds);
     $('#generate-ids-button').addEventListener('click', regenerateAllIds);
     $('#clear-selected-values-button').addEventListener('click', clearSelectedValues);
+    $('#toggle-well-lock-button').addEventListener('click', toggleSelectedWellLock);
 
     $('#add-plate-button').addEventListener('click', addPlate);
     $('#create-multiple-plates-button').addEventListener('click', openMultiPlateDialog);
@@ -886,6 +940,7 @@
     $('#save-project-button').addEventListener('click', downloadProject);
     $('#project-file').addEventListener('change', openProjectFile);
     $('#export-csv-button').addEventListener('click', exportCsv);
+    $('#export-xlsx-button').addEventListener('click', exportXlsx);
     $('#export-png-button').addEventListener('click', exportPng);
     $('#export-pdf-button').addEventListener('click', exportPdf);
   }
@@ -895,6 +950,11 @@
     const rows = Math.max(1, Math.min(40, Math.floor(Number($('#plate-rows').value) || 1)));
     const columns = Math.max(1, Math.min(48, Math.floor(Number($('#plate-columns').value) || 1)));
     if (rows === plate.rows && columns === plate.columns) return;
+    const removedLocked = plate.wells.some((row, r) => row.some((well, c) => (r >= rows || c >= columns) && well.locked));
+    if (removedLocked) {
+      $('#plate-rows').value = plate.rows; $('#plate-columns').value = plate.columns;
+      showToast('Unlock wells outside the new dimensions before shrinking this plate.'); return;
+    }
     let discardsData = false;
     for (let r = 0; r < plate.rows; r++) for (let c = 0; c < plate.columns; c++) {
       if ((r >= rows || c >= columns) && wellIsOccupied(plate.wells[r][c])) discardsData = true;
@@ -906,7 +966,7 @@
     plate.rows = rows; plate.columns = columns;
     plate.rowLabels = Array.from({ length: rows }, (_, i) => plate.rowLabels[i] || lettersForRow(i));
     plate.columnLabels = Array.from({ length: columns }, (_, i) => plate.columnLabels[i] || String(i + 1));
-    plate.wells = Array.from({ length: rows }, (_, r) => Array.from({ length: columns }, (_, c) => old[r]?.[c] || ({ well_id: '', barcode: '', is_occupied: false, values: defaultValues(metadataFields()) })));
+    plate.wells = Array.from({ length: rows }, (_, r) => Array.from({ length: columns }, (_, c) => old[r]?.[c] || ({ well_id: '', barcode: '', is_occupied: false, locked: false, values: defaultValues(metadataFields()) })));
     if (project.settings.autoFillWellIds) for (const item of project.plates) assignMissingIds(item);
     currentWindowIndex = 0; selectedKeys = new Set(['0,0']); renderAll();
   }
@@ -930,15 +990,29 @@
     renderGrid(); renderInspector();
   }
 
+  function toggleSelectedWellLock() {
+    const plate = getPlate(); const coords = selectionCoordinates();
+    if (!coords.length) return;
+    const unlock = coords.every(([r, c]) => plate.wells[r][c].locked);
+    for (const [r, c] of coords) {
+      plate.wells[r][c].locked = !unlock;
+      updateGridCell(r, c);
+    }
+    renderInspector(); saveProject();
+    showToast(`${unlock ? 'Unlocked' : 'Locked'} ${coords.length} selected well${coords.length === 1 ? '' : 's'}.`);
+  }
+
   function deleteAllExceptFirst() {
     if (project.plates.length <= 1) { showToast('The project has only one plate.'); return; }
     const retained = project.plates[0];
+    if (!requireUnlockedWells(project.plates.slice(1), 'deleting those plates')) return;
     if (!window.confirm(`Delete all plates except ${retained.label}? This removes ${project.plates.length - 1} plate${project.plates.length === 2 ? '' : 's'} and keeps the first plate with its current layout and metadata.`)) return;
     project.plates = [retained]; currentPlateId = retained.id; currentWindowIndex = 0;
     selectedKeys = new Set(['0,0']); renderAll(); showToast(`Kept ${retained.label} and deleted the other plates.`);
   }
 
   function resetProjectToDefaults() {
+    if (!requireUnlockedWells(project.plates, 'resetting the project')) return;
     if (!window.confirm('Reset the entire project to its defaults? This clears all plates and metadata, restores Cell line and Species, and returns to one blank 8 × 12 plate.')) return;
     project = blankProject();
     currentPlateId = project.plates[0].id; currentWindowIndex = 0;
@@ -950,6 +1024,7 @@
   function applyCurrentPlateToAll() {
     if (project.plates.length < 2) { showToast('Create another plate first.'); return; }
     const source = getPlate();
+    if (!requireUnlockedWells(project.plates.filter((plate) => plate.id !== source.id), 'overwriting other plates')) return;
     const idNote = project.settings.autoFillWellIds && project.settings.numberingScope === 'continue'
       ? 'Well IDs will be regenerated across the project to keep numbering continuous.'
       : 'Well IDs will be copied from the selected plate.';
@@ -959,7 +1034,7 @@
       rows: source.rows, columns: source.columns,
       rowLabels: [...source.rowLabels], columnLabels: [...source.columnLabels],
       wells: source.wells.map((row) => row.map((well) => ({
-        well_id: well.well_id, barcode: well.barcode, is_occupied: well.is_occupied, values: { ...well.values }
+        well_id: well.well_id, barcode: well.barcode, is_occupied: well.is_occupied, locked: false, values: { ...well.values }
       })))
     };
     for (const plate of project.plates) {
@@ -967,13 +1042,14 @@
       plate.rows = sourceSnapshot.rows; plate.columns = sourceSnapshot.columns;
       plate.rowLabels = [...sourceSnapshot.rowLabels]; plate.columnLabels = [...sourceSnapshot.columnLabels];
       plate.wells = sourceSnapshot.wells.map((row) => row.map((well) => ({
-        well_id: well.well_id, barcode: well.barcode, is_occupied: well.is_occupied, values: { ...well.values }
+        well_id: well.well_id, barcode: well.barcode, is_occupied: well.is_occupied, locked: false, values: { ...well.values }
       })));
     }
     if (project.settings.autoFillWellIds && project.settings.numberingScope === 'continue') {
       let offset = 0;
+      const reserved = new Set(project.plates.flatMap((plate) => plate.wells.flat().filter((well) => well.locked && well.well_id).map((well) => well.well_id)));
       for (const plate of project.plates) {
-        assignIdsToPlate(plate, offset); offset += plate.rows * plate.columns;
+        assignIdsToPlate(plate, offset, project.settings, reserved); offset += plate.rows * plate.columns;
       }
     }
     currentWindowIndex = 0; renderAll();
@@ -1015,6 +1091,7 @@
     const current = getPlate();
     const copy = normalizePlate(JSON.parse(JSON.stringify(current)), project.plates.length);
     copy.id = makeId(); copy.label = `${current.label || 'Plate'} copy`;
+    for (const row of copy.wells) for (const well of row) well.locked = false;
     if (project.settings.autoFillWellIds && project.settings.numberingScope === 'continue') assignIdsToPlate(copy, offsetBeforePlate(project.plates.length));
     project.plates.push(copy); currentPlateId = copy.id; currentWindowIndex = 0; selectedKeys = new Set(['0,0']); renderAll();
   }
@@ -1022,6 +1099,7 @@
   function removePlate() {
     if (project.plates.length < 2) { showToast('A project must contain at least one plate.'); return; }
     const plate = getPlate();
+    if (!requireUnlockedWells([plate], 'removing this plate')) return;
     if (!window.confirm(`Remove ${plate.label || 'this plate'} from the project?`)) return;
     const index = project.plates.findIndex((item) => item.id === plate.id);
     project.plates.splice(index, 1); currentPlateId = project.plates[Math.max(0, index - 1)].id; currentWindowIndex = 0;
@@ -1031,13 +1109,16 @@
   function regenerateAllIds() {
     const prefix = project.settings.idPrefix;
     const start = project.settings.idStart;
-    if (!window.confirm(`Regenerate every well ID using “${prefix}${start}” as the first ID? Existing well IDs will be replaced.`)) return;
+    if (!window.confirm(`Regenerate unlocked well IDs using “${prefix}${start}” as the first ID? Locked wells will keep their IDs.`)) return;
     let offset = 0;
+    const reserved = project.settings.numberingScope === 'continue'
+      ? new Set(project.plates.flatMap((plate) => plate.wells.flat().filter((well) => well.locked && well.well_id).map((well) => well.well_id)))
+      : null;
     for (const plate of project.plates) {
-      assignIdsToPlate(plate, project.settings.numberingScope === 'continue' ? offset : 0);
+      assignIdsToPlate(plate, project.settings.numberingScope === 'continue' ? offset : 0, project.settings, reserved);
       if (project.settings.numberingScope === 'continue') offset += plate.rows * plate.columns;
     }
-    renderGrid(); renderInspector(); saveProject(); showToast('Well IDs regenerated.');
+    renderGrid(); renderInspector(); saveProject(); showToast(`Well IDs regenerated in unlocked wells${lockedWells() ? '; locked wells were skipped' : ''}.`);
   }
 
   function highestIdNumber(plates, prefix) {
@@ -1052,10 +1133,10 @@
   }
 
   function generateSelectedIds() {
-    const plate = getPlate(); const coords = selectionCoordinates();
-    if (!coords.length) return;
+    const plate = getPlate(); const coords = editableSelection();
+    if (!coords.length) { showToast('Unlock a selected well before generating IDs.'); return; }
     const hasIds = coords.some(([r, c]) => String(plate.wells[r][c].well_id || '').trim());
-    if (hasIds && !window.confirm(`Generate new IDs for the ${coords.length} selected wells? Existing IDs in the selection will be replaced.`)) return;
+    if (hasIds && !window.confirm(`Generate new IDs for the ${coords.length} unlocked selected wells? Their existing IDs will be replaced.`)) return;
     const scope = project.settings.numberingScope === 'continue' ? project.plates : [plate];
     const prefix = String(project.settings.idPrefix ?? 'well_dt_');
     const used = new Set();
@@ -1068,16 +1149,16 @@
       plate.wells[r][c].well_id = `${prefix}${number}`;
       used.add(`${prefix}${number++}`);
     }
-    renderGrid(); renderInspector(); saveProject(); showToast(`Generated IDs for ${coords.length} selected wells.`);
+    renderGrid(); renderInspector(); saveProject(); showToast(`Generated IDs for ${coords.length} unlocked selected well${coords.length === 1 ? '' : 's'}.`);
   }
 
   function clearSelectedValues() {
-    const plate = getPlate(); const coords = selectionCoordinates();
-    if (!coords.length) return;
+    const plate = getPlate(); const coords = editableSelection();
+    if (!coords.length) { showToast('Unlock a selected well before clearing values.'); return; }
     const idEffect = project.settings.autoFillWellIds
       ? ' Automatic fill will assign a well ID again to each selected well.'
       : ' Well IDs will remain empty.';
-    if (!window.confirm(`Clear the well ID, barcode, occupancy, and every metadata value from ${coords.length} selected well${coords.length === 1 ? '' : 's'}?${idEffect}`)) return;
+    if (!window.confirm(`Clear the well ID, barcode, occupancy, and every metadata value from ${coords.length} unlocked selected well${coords.length === 1 ? '' : 's'}?${idEffect}`)) return;
     for (const [r, c] of coords) {
       const well = plate.wells[r][c];
       well.well_id = ''; well.barcode = ''; well.is_occupied = false;
@@ -1094,7 +1175,7 @@
     const highestNumber = highestIdNumber(scope, prefix);
     let next = highestNumber + 1;
     for (const [r, c] of numberingCoordinates(plate)) {
-      if (!plate.wells[r][c].well_id) plate.wells[r][c].well_id = `${prefix}${next++}`;
+      if (!plate.wells[r][c].locked && !plate.wells[r][c].well_id) plate.wells[r][c].well_id = `${prefix}${next++}`;
     }
   }
 
@@ -1197,6 +1278,7 @@
     title.textContent = `${plate.label} · ${positionLabel(plate, r, c)}`;
     wellTooltip.append(title);
     appendTooltipRow('Well ID', well.well_id || 'No well ID');
+    appendTooltipRow('Locked', well.locked ? 'Yes' : 'No');
     appendTooltipRow('Occupied', wellIsOccupied(well) ? 'Yes' : 'No');
     if (plate.group) appendTooltipRow('Group', plate.group);
     if (plate.sample_index) appendTooltipRow('Sample index', plate.sample_index);
@@ -1305,7 +1387,9 @@
       const coords = selectionCoordinates();
       nonemptyRows.forEach((row, index) => {
         if (index >= coords.length) return;
-        const [r, c] = coords[index]; const well = wellAt(plate, r, c); setField(well, field, row[0]);
+        const [r, c] = coords[index]; const well = wellAt(plate, r, c);
+        if (well.locked) return;
+        setField(well, field, row[0]);
         if (row[0].trim() && fieldOccupiesWell(field)) well.is_occupied = true; count++;
       });
     } else {
@@ -1315,6 +1399,7 @@
           const rr = start[0] + r; const cc = start[1] + c;
           if (rr >= plate.rows || cc >= plate.columns) continue;
           const value = nonemptyRows[r][c]; const well = wellAt(plate, rr, cc);
+          if (well.locked) continue;
           setField(well, field, value); if (value.trim() && fieldOccupiesWell(field)) well.is_occupied = true; count++;
         }
       }
@@ -1327,7 +1412,7 @@
 
   function showPasteToast(count) {
     showToast(lastPasteSkipped
-      ? `Pasted ${count} values; ${lastPasteSkipped} did not fit the selected wells.`
+      ? `Pasted ${count} values; ${lastPasteSkipped} skipped (locked or outside the plate).`
       : `Pasted data into ${count} wells.`);
   }
 
@@ -1352,7 +1437,7 @@
       if (!target) target = recordCoordinate(record, plate) || fallbackCoords[sequential];
       sequential++;
       if (!target) continue;
-      const [r, c] = target; const well = wellAt(plate, r, c); if (!well) continue;
+      const [r, c] = target; const well = wellAt(plate, r, c); if (!well || well.locked) continue;
       applyRecordToWell(well, record);
       count++;
     }
@@ -1387,7 +1472,8 @@
   }
 
   function applyRecordToWell(well, record) {
-    const handled = new Set(['plate_id', 'group', 'sample_index', 'source_sample', 'plate_position', 'plate_row', 'plate_column', 'x', 'y', 'total_well', 'well_name_fill_color', 'well_number_label', 'well_number_fill_color', 'display_feature', 'display_label', 'display_fill_color']);
+    if (well.locked) return;
+    const handled = new Set(['plate_id', 'group', 'sample_index', 'source_sample', 'plate_position', 'plate_row', 'plate_column', 'x', 'y', 'total_well', 'locked', 'well_name_fill_color', 'well_number_label', 'well_number_fill_color', 'display_feature', 'display_label', 'display_fill_color']);
     for (const [rawField, rawValue] of Object.entries(record)) {
       if (handled.has(rawField) || rawValue == null) continue;
       let field = rawField;
@@ -1407,7 +1493,9 @@
   function installImportedPlates(imported, sourceName, mapping = '') {
     if (!imported.length) { showToast('No plates were found in that file.'); return; }
     const mappingText = mapping ? `\nDetected fields: ${mapping}.` : '';
-    const replace = window.confirm(`Found ${imported.length} plate${imported.length === 1 ? '' : 's'} in ${sourceName}.${mappingText}\nReplace the current project? Choose Cancel to add them to this project.`);
+    const hasLocks = lockedWells() > 0;
+    if (hasLocks && !window.confirm(`Found ${imported.length} plate${imported.length === 1 ? '' : 's'} in ${sourceName}.${mappingText}\nThe current project has locked wells, so it cannot be replaced. Add the imported plates instead?`)) return;
+    const replace = !hasLocks && window.confirm(`Found ${imported.length} plate${imported.length === 1 ? '' : 's'} in ${sourceName}.${mappingText}\nReplace the current project? Choose Cancel to add them to this project.`);
     if (replace) {
       project.plates = imported;
     }
@@ -1486,6 +1574,7 @@
   async function openProjectFile(event) {
     const file = event.target.files?.[0]; event.target.value = '';
     if (!file) return;
+    if (!requireUnlockedWells(project.plates, 'opening another project')) return;
     try {
       const imported = normalizeProject(JSON.parse(await file.text()));
       project = imported; currentPlateId = project.plates[0].id; currentWindowIndex = 0; selectedFeatures = [...project.settings.displayFeatures]; selectedFeature = selectedFeatures[0] || project.fields[0] || 'cell_line';
@@ -1590,6 +1679,40 @@
     const csv = `\uFEFF${[columns, ...rows].map((row) => row.map(csvEscape).join(',')).join('\r\n')}`;
     downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), 'plate_layout_annotations.csv');
     showToast(`Exported ${rows.length} plate positions to CSV.`);
+  }
+
+  function exportXlsx() {
+    if (!confirmExportWarnings()) return;
+    try {
+      const layoutSheets = project.plates.map((plate) => ({
+        type: 'layout', name: plate.label || 'Plate', title: plate.label || 'Untitled plate',
+        subtitle: `EasyPlate layout · ${selectedDisplayTitle()} · ${plate.rows} rows × ${plate.columns} columns${plate.group ? ` · ${plate.group}` : ''}`,
+        note: 'Edit cells in Excel. Orange borders mark wells locked in EasyPlate; workbook edits do not change this browser project.',
+        columns: [...plate.columnLabels],
+        rows: plate.wells.map((row, r) => ({
+          label: plate.rowLabels[r] || lettersForRow(r),
+          wells: row.map((well) => ({
+            text: wellLinesForFeatures(well).join('\n'), color: displayColorFor(well), locked: Boolean(well.locked)
+          }))
+        }))
+      }));
+      const dataFields = project.fields.filter((field) => field !== 'barcode');
+      const headers = ['Plate', 'Position', 'Row', 'Column', 'Well ID', 'Occupied', 'Locked', 'Barcode', ...dataFields.map(featureLabel)];
+      const dataRows = [];
+      for (const plate of project.plates) for (let r = 0; r < plate.rows; r++) for (let c = 0; c < plate.columns; c++) {
+        const well = plate.wells[r][c];
+        dataRows.push([plate.label, positionLabel(plate, r, c), r + 1, c + 1,
+          well.well_id, wellIsOccupied(well) ? 'Yes' : 'No', well.locked ? 'Yes' : 'No', well.barcode,
+          ...dataFields.map((field) => getValue(well, field))]);
+      }
+      const workbook = globalThis.EasyPlateXlsx.createWorkbook([
+        ...layoutSheets, { type: 'table', name: 'Well data', headers, rows: dataRows }
+      ]);
+      downloadBlob(workbook, 'easyplate_plate_layout.xlsx');
+      showToast(`Exported ${layoutSheets.length} editable plate layout${layoutSheets.length === 1 ? '' : 's'} to XLSX.`);
+    } catch (error) {
+      showToast(`XLSX export failed: ${error.message}`);
+    }
   }
 
   function downloadBlob(blob, name) {
