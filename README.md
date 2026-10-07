@@ -2,11 +2,15 @@
 
 EasyPlate is a local browser tool for planning sample plate layouts, assigning well metadata, and exporting plate annotations and maps. It serves only on `127.0.0.1`; imported table contents are processed on this computer.
 
+Windows users can install EasyPlate from the [Microsoft Store](https://apps.microsoft.com/detail/9nvdvzllfj57).
+
 ![EasyPlate open in a browser, showing plate setup, well IDs, the plate preview, and well details](docs/easyplate-browser.png)
 
 *EasyPlate with a 96-well plate and one locked well in a browser.*
 
 ## Requirements
+
+To run EasyPlate from its source code, you need:
 
 - Python 3.10 or newer (`python3` on macOS/Linux or `python` on Windows).
 - A current browser with JavaScript enabled, such as Safari, Edge, Chrome, or
@@ -92,7 +96,17 @@ cd EasyPlate
 bash start.sh
 ```
 
-### Windows (PowerShell)
+### Install from Microsoft Store on Windows
+
+Open [EasyPlate in the Microsoft Store](https://apps.microsoft.com/detail/9nvdvzllfj57),
+install the app, then launch **EasyPlate** from the Windows Start menu. It opens
+the local interface in your browser.
+
+The Store app includes its Python runtime, so you can install and run it without
+setting up Python separately. A current browser with JavaScript enabled is
+still required.
+
+### Run the source on Windows (PowerShell)
 
 Install Python 3.10 or newer using the [official Python Windows instructions](https://docs.python.org/3/using/windows.html).
 Then run these commands in PowerShell (`git clone` requires Git; you can also
