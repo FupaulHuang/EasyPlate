@@ -62,6 +62,17 @@ cannot create plates or trigger exports.
 
 ## Use the browser app
 
+For an authorized Linux/macOS update, stop the server and run
+`bash start.sh update --check` followed by `bash start.sh update` from a source
+folder, or `easyplate update` for an installed Homebrew command. The updater
+uses the latest stable GitHub release, protects local source changes, and
+keeps unrelated files. Restart the app afterward using the same port.
+Use `easyplate --version` or `bash start.sh --version` to check the version.
+Do not use Git reset or discard user edits to bypass an updater refusal.
+Older installations need one manual Git/Homebrew update to obtain this command.
+Pip wheels and native installers use their original installation method for
+updates; Microsoft Store handles Windows Store updates.
+
 1. Check whether the browser already has a project. EasyPlate autosaves to
    that browser's local storage; use a fresh browser profile for an isolated
    run. Do not reset an existing project unless the user asked for that.

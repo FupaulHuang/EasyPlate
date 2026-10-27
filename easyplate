@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+project_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+python_bin="${EASYPLATE_PYTHON:-python3}"
+if ! command -v "$python_bin" >/dev/null 2>&1 ||
+   ! "$python_bin" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1; then
+  echo "EasyPlate requires Python 3.10 or newer. Set EASYPLATE_PYTHON to its executable." >&2
+  exit 1
+fi
+exec "$python_bin" "$project_dir/server.py" "$@"

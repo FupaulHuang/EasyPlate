@@ -6,7 +6,7 @@ Windows users can install EasyPlate from the [Microsoft Store](https://apps.micr
 
 ![EasyPlate open in a browser, showing plate setup, well IDs, the plate preview, and well details](docs/easyplate-browser.png)
 
-*EasyPlate v0.1.3 with a 96-well example plate, a locked feature, and copy/paste controls.*
+*EasyPlate with a 96-well example plate, a locked feature, and copy/paste controls.*
 
 ## Requirements
 
@@ -151,7 +151,61 @@ version before starting the server.
 If the browser does not open automatically, open `http://127.0.0.1:8765` on
 the same computer. `127.0.0.1` refers to that computer only.
 
+## Update on Linux or macOS
+
+Starting with v0.1.4, run:
+
+```bash
+easyplate update --check  # Show the installed and latest GitHub release versions
+easyplate update          # Install the latest stable release
+easyplate --version
+```
+
+For a source checkout or an extracted source archive, run these commands from
+its folder without changing your PATH:
+
+```bash
+bash start.sh update --check
+bash start.sh update
+```
+
+To use the shorter `easyplate` command from any directory, add the source folder
+to your shell's PATH. From the EasyPlate folder:
+
+```bash
+export PATH="$PWD:$PATH"
+easyplate update
+```
+
+For later shell sessions, put a PATH entry using the folder's absolute path in
+your shell startup file. You can also run `./easyplate` from the source folder.
+
+Stop EasyPlate before updating, then start it again and refresh the browser.
+The updater checks the latest stable GitHub release over HTTPS:
+
+- **Homebrew:** runs `brew update` and `brew upgrade FupaulHuang/easyplate/easyplate`.
+  If the release is newer than the tap, it asks you to try again later.
+- **Git clone:** fetches the release tag and fast-forwards the checkout. It
+  refuses modified source files or diverged local commits.
+- **Extracted source ZIP/tar.gz:** checks the installed source against its
+  original GitHub release, backs it up in `.easyplate-backup-*`, then replaces
+  the app files. Local code changes stop the update. Failed writes restore the
+  backup; rerunning the command recovers an interrupted update.
+
+Extra files, local packaging files, and browser-saved projects are preserved.
+Keep using the same host and port to access the same browser storage.
+The command does not update pip wheels or native installers; use their
+installation method for updates. Windows Store installs update through the
+Microsoft Store.
+
+**First update from v0.1.3 or earlier:** these versions do not have the command.
+For a Git clone, run `git pull --ff-only` once. For Homebrew, run `brew update`
+followed by `brew upgrade FupaulHuang/easyplate/easyplate` once. For an extracted
+source folder, download and extract the latest source release once. Then use
+`easyplate update` or `bash start.sh update` for subsequent releases.
+
 ## Create and edit plates
+
 
 Text entered in plate labels, groups, sample details, well IDs, metadata values,
 and new feature names accepts English letters, numbers, `_`, and `-`. Other
@@ -201,7 +255,8 @@ The CSV export reports repeated or missing well IDs before downloading and lets 
 
 `index.html`, `styles.css`, `app.js`, and `xlsx.js` are the browser interface. `server.py`
 serves them on this computer; `start.sh` launches the server and opens a
-browser on macOS/Linux. See [AGENTS.md](AGENTS.md) for AI agent run instructions.
+browser on macOS/Linux. The `easyplate` shell command and `updater.py` provide
+version checks and updates. See [AGENTS.md](AGENTS.md) for AI agent run instructions.
 Keep real sample metadata and exported projects out of the repository; use
 invented or anonymized examples instead.
 

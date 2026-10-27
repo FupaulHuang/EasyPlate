@@ -11,6 +11,11 @@ venv/
 *.egg-info/
 
 # Local settings and editor files
+.easyplate-update.lock
+.easyplate-update-pending
+.easyplate-backup-*/
+.easyplate-write-*
+.easyplate-homebrew
 .env
 .env.*
 !.env.example

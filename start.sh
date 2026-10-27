@@ -2,9 +2,13 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+if [[ "${1:-}" == "update" || "${1:-}" == "--version" ]]; then
+  exec bash ./easyplate "$@"
+fi
+
 port="${EASYPLATE_PORT:-8765}"
 if [[ "${1:-}" == "--help" ]]; then
-  echo "Usage: bash start.sh [--port 8765]"
+  echo "Usage: bash start.sh [--port 8765] | update [--check] | --version"
   exit 0
 elif [[ $# -gt 0 ]]; then
   if [[ $# -ne 2 || "$1" != "--port" ]]; then

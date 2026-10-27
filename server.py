@@ -10,6 +10,11 @@ import webbrowser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+if __package__:
+    from .updater import VERSION, update
+else:
+    from updater import VERSION, update
+
 
 ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 
@@ -45,11 +50,17 @@ def serve(*, port: int = 8765, open_browser: bool = False) -> None:
         server.server_close()
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Start the local EasyPlate browser app")
+    parser.add_argument("command", nargs="?", default="run", choices=("run", "update"),
+                        help="run the app (default) or update from the latest GitHub release")
+    parser.add_argument("--version", action="version", version="EasyPlate " + VERSION)
+    parser.add_argument("--check", action="store_true", help="with update, check for a new release without installing")
     parser.add_argument("--port", type=int, default=8765, help="local port (default: 8765)")
     parser.add_argument("--no-browser", action="store_true", help="do not open a browser automatically")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
+    if args.check and args.command != "update":
+        parser.error("--check is only available with update")
     if not 1 <= args.port <= 65535:
         parser.error("--port must be between 1 and 65535")
     return args
@@ -61,6 +72,8 @@ def main() -> None:
 
 def launch() -> None:
     args = parse_args()
+    if args.command == "update":
+        raise SystemExit(update(ROOT, check_only=args.check))
     serve(port=args.port, open_browser=not args.no_browser)
 
 
