@@ -25,7 +25,7 @@
     const content = String(value ?? '').slice(0, 32767);
     if (!content) return '<c r="' + address + '" s="' + style + '"/>';
     return '<c r="' + address + '" s="' + style + '" t="inlineStr"><is><t xml:space="preserve">' +
-      xml(content) + '</t></is></c>';
+      xml(content.replace(/_x[0-9A-Fa-f]{4}_/g, (match) => '_x005F_' + match.slice(1))) + '</t></is></c>';
   }
 
   function sheetName(value, used) {
@@ -213,7 +213,7 @@
       ['xl/workbook.xml', XML_HEADER + '<workbook xmlns="' + SHEET_NS +
         '" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' +
         names.map((name, index) => '<sheet name="' + xml(name) + '" sheetId="' + (index + 1) +
-          '" r:id="rId' + (index + 1) + '"/>').join('') + '</sheets></workbook>'],
+          '" r:id="rId' + (index + 1) + '"' + (sheets[index].hidden ? ' state="hidden"' : '') + '/>').join('') + '</sheets></workbook>'],
       ['xl/_rels/workbook.xml.rels', XML_HEADER +
         '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
         sheets.map((_, index) => '<Relationship Id="rId' + (index + 1) +
@@ -231,6 +231,114 @@
     return zipFiles(files);
   }
 
-  globalThis.EasyPlateXlsx = { createWorkbook };
-  if (typeof module !== 'undefined' && module.exports) module.exports = { createWorkbook };
+  // Read ZIP central-directory entries, including DEFLATE files saved by Excel.
+  // Limits are checked before and during decompression to bound browser memory.
+  async function readWorkbook(buffer) {
+    const bytes = new Uint8Array(buffer); const view = new DataView(buffer);
+    const limit = 64 * 1024 * 1024;
+    if (bytes.length > limit || bytes.length < 22) throw new Error('Choose an XLSX file smaller than 64 MB.');
+    let end = bytes.length - 22;
+    while (end >= Math.max(0, bytes.length - 65557) && view.getUint32(end, true) !== 0x06054B50) end--;
+    if (end < 0 || view.getUint32(end, true) !== 0x06054B50) throw new Error('This file is not a valid XLSX workbook.');
+    const entries = view.getUint16(end + 10, true);
+    let cursor = view.getUint32(end + 16, true);
+    if (view.getUint16(end + 4, true) || entries > 4096) throw new Error('This workbook ZIP format is not supported.');
+    const files = new Map(); const decoder = new TextDecoder(); let total = 0;
+    for (let index = 0; index < entries; index++) {
+      if (cursor + 46 > end || view.getUint32(cursor, true) !== 0x02014B50) throw new Error('Invalid workbook directory.');
+      const flags = view.getUint16(cursor + 8, true);
+      const method = view.getUint16(cursor + 10, true);
+      const checksum = view.getUint32(cursor + 16, true);
+      const size = view.getUint32(cursor + 20, true);
+      const expanded = view.getUint32(cursor + 24, true);
+      const nameLength = view.getUint16(cursor + 28, true);
+      const extraLength = view.getUint16(cursor + 30, true);
+      const commentLength = view.getUint16(cursor + 32, true);
+      const local = view.getUint32(cursor + 42, true);
+      const name = decoder.decode(bytes.subarray(cursor + 46, cursor + 46 + nameLength));
+      cursor += 46 + nameLength + extraLength + commentLength;
+      if (cursor > end || flags & 1 || local + 30 > bytes.length) throw new Error('Encrypted or damaged workbook.');
+      if (view.getUint32(local, true) !== 0x04034B50) throw new Error('Invalid workbook file entry.');
+      const start = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
+      if (start + size > bytes.length || expanded > limit || (total += expanded) > limit) throw new Error('Workbook contents exceed the 64 MB limit.');
+      if (files.has(name)) throw new Error('Duplicate workbook entry.');
+      files.set(name, { start, size, expanded, checksum, method });
+    }
+    const cache = new Map();
+    async function documentFor(name, optional = false) {
+      if (cache.has(name)) return cache.get(name);
+      const entry = files.get(name);
+      if (!entry) { if (optional) return null; throw new Error('Missing workbook part: ' + name); }
+      let data = bytes.subarray(entry.start, entry.start + entry.size);
+      if (entry.method === 8) {
+        let decompressor;
+        try { decompressor = new DecompressionStream('deflate-raw'); }
+        catch (_) { throw new Error('Update your browser to import compressed XLSX files.'); }
+        const reader = new Blob([data]).stream().pipeThrough(decompressor).getReader();
+        const chunks = []; let length = 0;
+        try {
+          for (;;) {
+            const result = await reader.read(); if (result.done) break;
+            length += result.value.length;
+            if (length > entry.expanded || length > limit) throw new Error('Workbook decompression limit exceeded.');
+            chunks.push(result.value);
+          }
+        } catch (error) { await reader.cancel().catch(() => {}); throw error; }
+        data = new Uint8Array(length); let offset = 0;
+        for (const chunk of chunks) { data.set(chunk, offset); offset += chunk.length; }
+      } else if (entry.method !== 0) throw new Error('Unsupported workbook compression.');
+      if (data.length !== entry.expanded || crc32(data) !== entry.checksum) throw new Error('Workbook checksum mismatch.');
+      const source = decoder.decode(data);
+      if (/<!DOCTYPE|<!ENTITY/i.test(source)) throw new Error('Unsupported XML declarations.');
+      const doc = new DOMParser().parseFromString(source, 'application/xml');
+      if (doc.getElementsByTagName('parsererror').length) throw new Error('Invalid workbook XML.');
+      cache.set(name, doc); return doc;
+    }
+    const all = (node, tag) => [...node.getElementsByTagNameNS('*', tag)];
+    const textOf = (node) => all(node, 't').map((item) => item.textContent).join('')
+      .replace(/_x([0-9A-Fa-f]{4})_/g, (_, code) => String.fromCharCode(parseInt(code, 16)));
+    const workbook = await documentFor('xl/workbook.xml');
+    const relations = await documentFor('xl/_rels/workbook.xml.rels');
+    const paths = new Map();
+    for (const relation of all(relations, 'Relationship')) {
+      if (relation.getAttribute('TargetMode') === 'External') continue;
+      const target = relation.getAttribute('Target');
+      const path = new URL(target, 'https://workbook.invalid/xl/workbook.xml');
+      if (path.origin !== 'https://workbook.invalid') continue;
+      paths.set(relation.getAttribute('Id'), decodeURIComponent(path.pathname.slice(1)));
+    }
+    const sharedPath = all(relations, 'Relationship').find((item) => /\/sharedStrings$/.test(item.getAttribute('Type')))?.getAttribute('Id');
+    const sharedDoc = await documentFor(paths.get(sharedPath) || 'xl/sharedStrings.xml', true);
+    const strings = sharedDoc ? all(sharedDoc, 'si').map(textOf) : [];
+    const sheets = []; let cellCount = 0; let allocatedCells = 0;
+    for (const sheet of all(workbook, 'sheet')) {
+      const relation = sheet.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id') || sheet.getAttribute('r:id');
+      const doc = await documentFor(paths.get(relation));
+      const rows = [];
+      for (const cell of all(doc, 'c')) {
+        const address = /^([A-Z]+)([1-9][0-9]*)$/.exec(cell.getAttribute('r') || '');
+        if (!address) continue;
+        const row = Number(address[2]) - 1;
+        const column = [...address[1]].reduce((value, char) => value * 26 + char.charCodeAt(0) - 64, 0) - 1;
+        if (row >= 250000 || column >= 512 || ++cellCount > 2000000) throw new Error('Worksheet is too large to import.');
+        const type = cell.getAttribute('t');
+        const raw = all(cell, 'v')[0]?.textContent ?? '';
+        if (all(cell, 'f').length && !all(cell, 'v').length) throw new Error('Recalculate and save formula cells in Excel before importing.');
+        if (type === 'e') throw new Error('Resolve spreadsheet cell errors before importing.');
+        let value = type === 'inlineStr' ? textOf(cell) : type === 's' ? strings[Number(raw)] : type === 'b' ? (raw === '1' ? 'true' : 'false') : raw;
+        if (value == null) throw new Error('Invalid shared string reference.');
+        rows[row] ||= [];
+        allocatedCells += Math.max(0, column + 1 - rows[row].length);
+        if (allocatedCells > 2000000) throw new Error('Worksheet is too large to import.');
+        rows[row][column] = String(value);
+      }
+      const matrix = Array.from({length: rows.length}, (_, r) => Array.from({length: rows[r]?.length || 0}, (_, c) => rows[r][c] ?? ''));
+      sheets.push({ name: sheet.getAttribute('name'), hidden: sheet.getAttribute('state') === 'hidden', rows: matrix });
+    }
+    if (!sheets.length) throw new Error('No worksheets were found.');
+    return sheets;
+  }
+
+  globalThis.EasyPlateXlsx = { createWorkbook, readWorkbook };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { createWorkbook, readWorkbook };
 })();

@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <title>EasyPlate · Plate layout designer</title>
-  <link rel="stylesheet" href="styles.css?v=0.1.2">
-  <script src="xlsx.js?v=0.1.2" defer></script>
-  <script src="app.js?v=0.1.2" defer></script>
+  <link rel="stylesheet" href="styles.css?v=0.1.3">
+  <script src="xlsx.js?v=0.1.3" defer></script>
+  <script src="app.js?v=0.1.3" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -18,6 +18,8 @@
     <div class="top-actions">
       <button id="import-table-button" class="button button-quiet" type="button">Import CSV / TSV</button>
       <input id="table-file" class="visually-hidden" type="file" accept=".csv,.tsv,.txt">
+      <button id="import-xlsx-button" class="button button-quiet" type="button">Import XLSX</button>
+      <input id="xlsx-file" class="visually-hidden" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
       <button id="save-project-button" class="button button-quiet" type="button">Save project</button>
       <label class="button button-quiet file-button" for="project-file">Open project</label>
       <input id="project-file" class="visually-hidden" type="file" accept=".json,application/json">
@@ -115,10 +117,17 @@
           <button id="invert-selection-button" class="text-button" type="button" title="Toggle selection for every well in the visible window">Invert selection</button>
           <button id="toggle-well-lock-button" class="text-button lock-button" type="button">Lock selected</button>
         </div>
+        <div class="transfer-toolbar" aria-label="Copy and paste wells">
+          <button id="copy-wells-button" class="text-button" type="button">Copy wells</button>
+          <button id="paste-wells-button" class="text-button" type="button" disabled>Paste wells</button>
+          <label class="checkbox-field"><input id="copy-well-ids" type="checkbox"><span>Include well IDs</span></label>
+          <label class="paste-target">Paste table into <select id="paste-feature" aria-label="Feature for pasted table"></select></label>
+          <span id="copy-summary" class="hint">Copy wells, select a destination, then paste. Ctrl/Cmd+V pastes an Excel range.</span>
+        </div>
         <div class="grid-scroll">
           <div id="plate-grid" class="plate-grid" role="grid" aria-label="Editable plate grid"></div>
         </div>
-        <div class="plate-footnote"><span class="footnote-mark">i</span> Drag across wells to select a region. Shift-click adds individual wells. Locked wells stay visible but cannot be edited until unlocked.</div>
+        <div class="plate-footnote"><span class="footnote-mark">i</span> Drag to select a region. Shift-click adds wells. Locked wells and features are protected during edits and paste.</div>
       </section>
 
       <aside class="side-column">
@@ -177,6 +186,18 @@
     </div>
     <div class="dialog-footer"><button id="multi-plate-cancel" class="button button-quiet" type="button">Cancel</button><button id="multi-plate-create" class="button button-primary" type="button">Create plates</button></div>
   </dialog>
+  <dialog id="xlsx-import-dialog" class="work-dialog">
+    <form method="dialog" class="dialog-header"><div><div class="section-kicker">IMPORT WORKBOOK</div><h2>Import XLSX</h2></div><button class="close-button" value="cancel" aria-label="Close">×</button></form>
+    <div class="dialog-content">
+      <label class="field"><span>Worksheet</span><select id="xlsx-sheet"></select></label>
+      <p id="xlsx-import-hint" class="dialog-description"></p>
+      <label class="field"><span>Import into</span><select id="xlsx-import-mode"><option value="add">Add as new plates</option><option value="replace">Replace project</option><option value="paste">Paste into current plate</option></select></label>
+      <p class="hint">Use Well data for all annotations. A plain worksheet grid is pasted into the feature chosen in Layout Preview. Locked wells and features remain protected.</p>
+      <div id="xlsx-import-error" class="dialog-error" role="alert"></div>
+    </div>
+    <div class="dialog-footer"><button id="xlsx-import-cancel" class="button button-quiet" type="button">Cancel</button><button id="xlsx-import-confirm" class="button button-primary" type="button">Import worksheet</button></div>
+  </dialog>
+  <div id="input-warning" class="input-warning" role="alert" hidden>invalid input — use English letters, numbers, _ and - only. Invalid characters were replaced with _.</div>
   <div id="well-tooltip" class="well-tooltip" role="tooltip" hidden></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </body>

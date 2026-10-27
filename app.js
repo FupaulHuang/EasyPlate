@@ -5,10 +5,11 @@
   const DEFAULT_FIELDS = ['cell_line', 'species', 'treatment', 'dose', 'time'];
   const LEGACY_DEFAULT_FIELDS = new Set(['replicate', 'test']);
   const RESERVED_FIELDS = new Set([
-    'group', 'plate_id', 'sample_index', 'source_sample', 'plate_position', 'plate_row',
+    'group', 'plate_id', 'plate_key', 'sample_index', 'source_sample', 'plate_position', 'plate_row',
     'plate_column', 'is_occupied', 'locked', 'barcode', 'well_id', 'well_name', 'well_name_label',
     'well_name_fill_color', 'well_number_label', 'well_number_fill_color',
-    'display_feature', 'display_label', 'display_fill_color', '__all__', 'x', 'y', 'total_well'
+    'display_feature', 'display_label', 'display_fill_color', '__all__', 'x', 'y', 'total_well',
+    '__proto__', 'constructor', 'prototype'
   ]);
   const PALETTE = [
     '#e2f0e5', '#f8e7d9', '#e4e9f7', '#f4e3eb', '#e0eff2', '#f2edcf',
@@ -35,6 +36,9 @@
   let hoverTimer = 0;
   let hoverCell = null;
   let hoverPoint = { x: 0, y: 0 };
+  let copiedWells = null;
+  let pendingWorkbook = null;
+  let invalidInputTimer = 0;
 
   project = loadProject();
   currentPlateId = project.plates[0].id;
@@ -64,7 +68,7 @@
 
   function makePlate(label, rows = 8, columns = 12, settings = project.settings) {
     const plate = {
-      id: makeId(), label: label || `Plate ${project.plates.length + 1}`,
+      id: makeId(), label: validText(label || `Plate_${project.plates.length + 1}`),
       group: '', sample_index: '', source_sample: '', rows, columns,
       rowLabels: Array.from({ length: rows }, (_, i) => lettersForRow(i)),
       columnLabels: Array.from({ length: columns }, (_, i) => String(i + 1)),
@@ -78,12 +82,12 @@
 
   function blankProject() {
     const next = {
-      version: 5,
+      version: 6,
       settings: { idPrefix: 'well_dt_', idStart: 1, numberingOrder: 'column', numberingScope: 'reset', autoFillWellIds: true, displayFeature: 'cell_line', displayFeatures: ['cell_line', 'species'], preview: { wellSize: 60, fontSize: 18, showWellId: true, slideWindows: false, windowRows: 6, windowColumns: 8 } },
-      fields: [...DEFAULT_FIELDS], plates: []
+      fields: [...DEFAULT_FIELDS], lockedFeatures: [], plates: []
     };
     project = next;
-    const plate = makePlate('Plate 1', 8, 12, next.settings);
+    const plate = makePlate('Plate_1', 8, 12, next.settings);
     next.plates.push(plate);
     return next;
   }
@@ -94,13 +98,160 @@
 
   function normalizeFieldName(value) {
     return String(value || '').trim().toLowerCase()
-      .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+      .replace(/[^a-z0-9_-]/g, '_');
   }
 
   function boundedNumber(value, fallback, minimum, maximum) {
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) return fallback;
     return Math.max(minimum, Math.min(maximum, Math.round(parsed)));
+  }
+
+  function validText(value, warn = true) {
+    const text = String(value ?? '');
+    const clean = text.replace(/[^A-Za-z0-9_-]/g, '_');
+    if (warn && clean !== text) warnInvalidInput();
+    return clean;
+  }
+
+  function warnInvalidInput() {
+    const warning = $('#input-warning');
+    warning.hidden = false;
+    window.clearTimeout(invalidInputTimer);
+    invalidInputTimer = window.setTimeout(() => { warning.hidden = true; }, 6000);
+  }
+
+  function validatedInput(input) {
+    const start = input.selectionStart;
+    const value = validText(input.value);
+    if (value !== input.value) {
+      input.value = value;
+      if (start != null) input.setSelectionRange(start, start);
+    }
+    return value;
+  }
+
+  function featureIsLocked(field) {
+    return (project.lockedFeatures || []).includes(field);
+  }
+
+  function canEditField(well, field) {
+    return Boolean(well) && !well.locked && !featureIsLocked(field);
+  }
+
+  function toggleFeatureLock(field) {
+    const locks = new Set(project.lockedFeatures || []);
+    if (field === 'is_occupied' && !locks.has(field)) {
+      for (const plate of project.plates) for (const row of plate.wells) for (const well of row) {
+        well.is_occupied = wellIsOccupied(well);
+      }
+    }
+    if (locks.has(field)) locks.delete(field); else locks.add(field);
+    project.lockedFeatures = [...locks];
+    renderInspector(); renderIdControls(); renderPasteFeatures(); saveProject();
+    showToast(featureLabel(field) + (locks.has(field) ? ' locked across all wells.' : ' unlocked.'));
+  }
+
+  function requireUnlockedFeatures(action) {
+    if (!(project.lockedFeatures || []).length) return true;
+    showToast('Unlock features before ' + action + '.');
+    return false;
+  }
+
+  function featureLockButton(field) {
+    const button = document.createElement('button');
+    button.type = 'button'; button.className = 'feature-lock-button';
+    button.textContent = featureIsLocked(field) ? 'Unlock' : 'Lock';
+    button.dataset.lockField = field;
+    button.setAttribute('aria-pressed', String(featureIsLocked(field)));
+    button.title = (featureIsLocked(field) ? 'Unlock ' : 'Lock ') + featureLabel(field) + ' across all wells and plates';
+    button.addEventListener('click', () => toggleFeatureLock(field));
+    return button;
+  }
+
+  function renderPasteFeatures() {
+    const select = $('#paste-feature');
+    const previous = select.value;
+    select.replaceChildren();
+    for (const field of displayFields()) {
+      const option = document.createElement('option');
+      option.value = field;
+      option.textContent = featureLabel(field) + (featureIsLocked(field) ? ' (locked)' : '');
+      select.append(option);
+    }
+    select.value = displayFields().includes(previous) ? previous : (selectedFeatures[0] || project.fields[0] || 'well_id');
+  }
+
+  function detachedProject(raw) {
+    const current = project;
+    try { return normalizeProject(raw); } finally { project = current; }
+  }
+
+  function sanitizeImportedProject(imported) {
+    for (const plate of imported.plates) {
+      for (const key of ['label', 'group', 'sample_index', 'source_sample']) plate[key] = validText(plate[key]);
+      plate.rowLabels = plate.rowLabels.map((label) => validText(label));
+      plate.columnLabels = plate.columnLabels.map((label) => validText(label));
+      for (const row of plate.wells) for (const well of row) {
+        well.well_id = validText(well.well_id); well.barcode = validText(well.barcode);
+        for (const field of Object.keys(well.values)) well.values[field] = validText(well.values[field]);
+      }
+    }
+    imported.settings.idPrefix = validText(imported.settings.idPrefix);
+  }
+
+  function copySelectedWells() {
+    const plate = getPlate();
+    const coords = selectionCoordinates().sort(([ar, ac], [br, bc]) => ar - br || ac - bc);
+    if (!coords.length) return;
+    const minRow = Math.min(...coords.map(([r]) => r));
+    const minColumn = Math.min(...coords.map(([, c]) => c));
+    copiedWells = coords.map(([r, c]) => ({
+      r: r - minRow, c: c - minColumn,
+      well: JSON.parse(JSON.stringify(plate.wells[r][c]))
+    }));
+    $('#copy-summary').textContent = 'Copied ' + coords.length + ' wells. Select a destination, then Paste wells.';
+    updateSelectionSummary();
+    showToast('Copied ' + coords.length + ' wells.');
+  }
+
+  function pasteCopiedWells() {
+    if (!copiedWells || !selectedKeys.size) return;
+    const plate = getPlate();
+    const destinations = selectionCoordinates().sort(([ar, ac], [br, bc]) => ar - br || ac - bc);
+    const [anchorRow, anchorColumn] = destinations[0];
+    const pairs = copiedWells.length === 1
+      ? destinations.map(([r, c]) => [r, c, copiedWells[0].well])
+      : destinations.length === copiedWells.length && destinations.length > 1
+      ? destinations.map(([r, c], index) => [r, c, copiedWells[index].well])
+      : copiedWells.map((item) => [anchorRow + item.r, anchorColumn + item.c, item.well]);
+    let changed = 0; let skipped = 0;
+    for (const [r, c, source] of pairs) {
+      const target = wellAt(plate, r, c);
+      if (!target || target.locked) { skipped++; continue; }
+      let written = false;
+      const fields = [...project.fields, 'is_occupied', ...($('#copy-well-ids').checked ? ['well_id'] : [])];
+      for (const field of fields) {
+        const value = field === 'is_occupied' ? String(source.is_occupied) : getValue(source, field);
+        if (setField(target, field, value)) written = true;
+      }
+      if (written) changed++; else skipped++;
+    }
+    renderGrid(); renderInspector(); saveProject();
+    showToast('Copied information into ' + changed + ' wells; ' + skipped + ' skipped. Locked features were preserved.');
+  }
+
+  function onGridCopy(event) {
+    if (!event.target.closest('.well-cell') || !event.clipboardData) return;
+    copySelectedWells();
+    if (!copiedWells) return;
+    event.preventDefault();
+    event.clipboardData.setData('application/x-easyplate-wells', JSON.stringify(copiedWells));
+    const rows = Math.max(...copiedWells.map((item) => item.r)) + 1;
+    const columns = Math.max(...copiedWells.map((item) => item.c)) + 1;
+    const matrix = Array.from({length: rows}, () => Array(columns).fill(''));
+    for (const item of copiedWells) matrix[item.r][item.c] = String(getValue(item.well, pasteTargetFeature()));
+    event.clipboardData.setData('text/plain', matrix.map((row) => row.join('\t')).join('\n'));
   }
 
   function isAllowedOptionalField(field) {
@@ -141,7 +292,7 @@
     const savedFontSize = Number(raw.settings?.preview?.fontSize);
     const settings = {
       idPrefix: String(raw.settings?.idPrefix ?? 'well_dt_'),
-      idStart: Math.max(0, Number(raw.settings?.idStart ?? 1) || 0),
+      idStart: boundedNumber(raw.settings?.idStart, 1, 0, Number.MAX_SAFE_INTEGER),
       numberingOrder: raw.settings?.numberingOrder === 'row' ? 'row' : 'column',
       numberingScope: raw.settings?.numberingScope === 'continue' ? 'continue' : 'reset',
       autoFillWellIds: raw.settings?.autoFillWellIds !== false,
@@ -156,7 +307,7 @@
         windowColumns: Math.max(1, Math.min(48, Number(raw.settings?.preview?.windowColumns) || 8))
       }
     };
-    project = { version: 5, settings, fields: [], plates: [] };
+    project = { version: 6, settings, fields: [], lockedFeatures: [], plates: [] };
     const legacyFields = [...DEFAULT_FIELDS, ...(Array.isArray(raw.customFields) ? raw.customFields : [])];
     const requestedFields = Array.isArray(raw.fields) ? raw.fields : legacyFields;
     const normalizedFields = requestedFields.map(normalizeFieldName).filter(isAllowedOptionalField);
@@ -181,6 +332,8 @@
       }
     }
     const availableFeatures = [...project.fields, 'well_id', 'is_occupied'];
+    project.lockedFeatures = [...new Set((Array.isArray(raw.lockedFeatures) ? raw.lockedFeatures : [])
+      .filter((field) => availableFeatures.includes(field)))];
     let selected = settings.displayFeatures;
     if (!selected) selected = settings.displayFeature === '__all__'
       ? availableFeatures
@@ -388,7 +541,7 @@
   }
 
   function wellIsOccupied(well) {
-    return Boolean(well.is_occupied || well.barcode);
+    return featureIsLocked('is_occupied') ? Boolean(well.is_occupied) : Boolean(well.is_occupied || well.barcode);
   }
 
   function fieldOccupiesWell(field) {
@@ -456,14 +609,14 @@
 
   function assignIdsToPlate(plate, offset, settings = project.settings, reservedIds = null) {
     let number = Math.max(0, Number(settings.idStart) || 0) + offset;
-    const prefix = String(settings.idPrefix ?? 'well_dt_');
+    const prefix = validText(settings.idPrefix ?? 'well_dt_');
     const used = reservedIds || new Set(plate.wells.flat().filter((well) => well.locked && well.well_id).map((well) => well.well_id));
     const coords = settings.numberingOrder === 'row'
       ? Array.from({ length: plate.rows * plate.columns }, (_, i) => [Math.floor(i / plate.columns), i % plate.columns])
       : Array.from({ length: plate.rows * plate.columns }, (_, i) => [i % plate.rows, Math.floor(i / plate.rows)]);
     for (const [r, c] of coords) {
       const well = plate.wells[r][c];
-      if (well.locked) continue;
+      if (!canEditField(well, 'well_id')) continue;
       while (used.has(`${prefix}${number}`)) number++;
       well.well_id = `${prefix}${number++}`;
       used.add(well.well_id);
@@ -471,7 +624,7 @@
   }
 
   function assignUniqueIdsToPlate(plate, otherPlates, startingNumber, settings = project.settings) {
-    const prefix = String(settings.idPrefix ?? 'well_dt_');
+    const prefix = validText(settings.idPrefix ?? 'well_dt_');
     const used = new Set();
     for (const other of otherPlates) {
       if (other.id === plate.id) continue;
@@ -479,7 +632,7 @@
     }
     let number = Math.max(0, Number(settings.idStart) || 0) + startingNumber;
     for (const [r, c] of numberingCoordinates(plate)) {
-      if (plate.wells[r][c].locked) continue;
+      if (!canEditField(plate.wells[r][c], 'well_id')) continue;
       while (used.has(`${prefix}${number}`)) number++;
       plate.wells[r][c].well_id = `${prefix}${number}`;
       used.add(`${prefix}${number++}`);
@@ -590,6 +743,9 @@
   }
 
   function renderIdControls() {
+    const locked = featureIsLocked('well_id');
+    $('#auto-fill-ids').disabled = locked;
+    $('#generate-ids-button').disabled = locked;
     $('#auto-fill-ids').checked = project.settings.autoFillWellIds !== false;
     $('#id-prefix').value = project.settings.idPrefix;
     $('#id-start').value = project.settings.idStart;
@@ -674,8 +830,10 @@
     lockButton.textContent = count > 0 && locked === count ? 'Unlock selected' : 'Lock selected';
     lockButton.title = count === 0 ? 'Select wells to lock or unlock'
       : locked === count ? 'Unlock the selected wells for editing' : 'Protect the selected wells from changes';
+    $('#copy-wells-button').disabled = count === 0;
+    $('#paste-wells-button').disabled = count === 0 || !copiedWells;
     $('#clear-selected-values-button').disabled = count === locked;
-    $('#generate-selected-ids-button').disabled = count === locked;
+    $('#generate-selected-ids-button').disabled = count === locked || featureIsLocked('well_id');
     const [r, c] = anchorCoordinate();
     $('#select-all-wells-button').textContent = count === plate.rows * plate.columns ? 'Deselect all wells' : 'Select all wells';
     $('#selected-well-title').textContent = count === 0 ? 'No wells selected' : count === 1 ? positionLabel(plate, r, c) : `${count} wells selected`;
@@ -702,14 +860,15 @@
     }
     heading.append(caption);
     const actions = document.createElement('div'); actions.className = 'field-actions';
+    actions.append(featureLockButton(field));
     const clear = document.createElement('button'); clear.type = 'button'; clear.className = 'clear-feature-button';
     clear.textContent = 'Clear values'; clear.title = `Clear ${featureLabel(field)} values from every well`;
-    clear.disabled = editableSelection().length === 0;
+    clear.disabled = featureIsLocked(field) || editableSelection().length === 0;
     clear.addEventListener('click', () => clearFeatureAcrossAllWells(field)); actions.append(clear);
     if (field !== 'well_id') {
       const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'remove-field-button';
       remove.textContent = 'Remove'; remove.title = `Remove ${featureLabel(field)} from all wells`;
-      remove.disabled = lockedWells() > 0;
+      remove.disabled = featureIsLocked(field) || lockedWells() > 0;
       remove.addEventListener('click', () => removeOptionalField(field)); actions.append(remove);
     }
     heading.append(actions);
@@ -721,18 +880,20 @@
     const same = values.every((value) => value === values[0]);
     input.value = multiple || !same ? '' : (values[0] || '');
     if (multiple && !same) input.placeholder = 'Mixed values';
-    input.disabled = editableSelection().length === 0;
+    input.disabled = featureIsLocked(field) || editableSelection().length === 0;
     input.addEventListener('input', () => {
+      if (featureIsLocked(field)) return;
+      validatedInput(input);
       for (const [r, c] of editableSelection()) {
         const target = wellAt(getPlate(), r, c);
         setField(target, field, input.value);
-        if (input.value.trim() && fieldOccupiesWell(field)) target.is_occupied = true;
+        if (input.value.trim() && fieldOccupiesWell(field) && canEditField(target, 'is_occupied')) target.is_occupied = true;
         updateGridCell(r, c);
       }
       updateSelectionSummary(); saveProject();
     });
     if (field === 'well_id') input.addEventListener('change', () => {
-      if (!input.value.trim() && project.settings.autoFillWellIds) {
+      if (!featureIsLocked('well_id') && !input.value.trim() && project.settings.autoFillWellIds) {
         assignMissingIds(getPlate()); renderGrid(); renderInspector(); saveProject();
       }
     });
@@ -759,13 +920,15 @@
     const occupiedCount = coords.filter(([rr, cc]) => wellIsOccupied(wellAt(plate, rr, cc))).length;
     checkbox.checked = occupiedCount > 0;
     checkbox.indeterminate = occupiedCount > 0 && occupiedCount < coords.length;
-    checkbox.disabled = editableSelection().length === 0;
+    checkbox.disabled = featureIsLocked('is_occupied') || editableSelection().length === 0;
     checkbox.addEventListener('change', () => {
-      for (const [rr, cc] of editableSelection()) { wellAt(plate, rr, cc).is_occupied = checkbox.checked; updateGridCell(rr, cc); }
+      for (const [rr, cc] of editableSelection()) { if (canEditField(wellAt(plate, rr, cc), 'is_occupied')) wellAt(plate, rr, cc).is_occupied = checkbox.checked; updateGridCell(rr, cc); }
       saveProject(); renderInspector();
     });
     occupiedLabel.append(checkbox, document.createTextNode(' Mark selected wells as occupied'));
-    fixed.append(occupiedLabel);
+    const occupancyRow = document.createElement('div'); occupancyRow.className = 'occupancy-row';
+    occupancyRow.append(occupiedLabel, featureLockButton('is_occupied'));
+    fixed.append(occupancyRow);
 
     appendWellField(fixed, 'well_id', well, coords.length > 1);
     const fields = metadataFields();
@@ -780,13 +943,14 @@
   }
 
   function renderAll() {
-    renderTabs(); renderSetup(); renderFeatures(); renderPreviewControls(); renderIdControls(); renderGrid(); renderInspector();
+    renderTabs(); renderSetup(); renderFeatures(); renderPreviewControls(); renderIdControls(); renderPasteFeatures(); renderGrid(); renderInspector();
     saveProject();
   }
 
   function setField(well, field, value) {
-    if (well.locked) return false;
-    const text = String(value ?? '');
+    if (!canEditField(well, field)) return false;
+    if (!['well_id', 'is_occupied', 'barcode'].includes(field) && !isAllowedOptionalField(field)) return false;
+    const text = validText(value);
     if (field === 'well_name_label') return;
     if (field === 'well_id') well.well_id = text;
     else if (field === 'barcode') { addOptionalField(field); well.barcode = text; }
@@ -812,6 +976,7 @@
 
   function removeOptionalField(field) {
     if (!project.fields.includes(field)) return;
+    if (featureIsLocked(field)) { showToast('Unlock this feature before removing it.'); return; }
     if (!requireUnlockedWells(project.plates, `removing ${featureLabel(field)}`)) return;
     const hasValues = project.plates.some((plate) => plate.wells.some((row) => row.some((well) =>
       String(field === 'barcode' ? well.barcode : well.values[field] || '').trim() !== ''
@@ -827,6 +992,7 @@
   }
 
   function clearFeatureAcrossAllWells(field) {
+    if (featureIsLocked(field)) { showToast('Unlock this feature before clearing it.'); return; }
     if (field === 'well_id' && project.settings.autoFillWellIds) {
       const confirmed = window.confirm('Clear Well ID values in unlocked wells? Automatic fill will be turned off and stay off.');
       if (!confirmed) return;
@@ -847,10 +1013,10 @@
   }
 
   function bindEvents() {
-    $('#plate-label').addEventListener('input', (event) => { getPlate().label = event.target.value; $('#current-plate-title').textContent = event.target.value || 'Untitled plate'; renderTabs(); saveProject(); });
-    $('#plate-group').addEventListener('input', (event) => { getPlate().group = event.target.value; saveProject(); });
-    $('#plate-sample-index').addEventListener('input', (event) => { getPlate().sample_index = event.target.value; saveProject(); });
-    $('#plate-source-sample').addEventListener('input', (event) => { getPlate().source_sample = event.target.value; saveProject(); });
+    $('#plate-label').addEventListener('input', (event) => { getPlate().label = validatedInput(event.target); $('#current-plate-title').textContent = event.target.value || 'Untitled plate'; renderTabs(); saveProject(); });
+    $('#plate-group').addEventListener('input', (event) => { getPlate().group = validatedInput(event.target); saveProject(); });
+    $('#plate-sample-index').addEventListener('input', (event) => { getPlate().sample_index = validatedInput(event.target); saveProject(); });
+    $('#plate-source-sample').addEventListener('input', (event) => { getPlate().source_sample = validatedInput(event.target); saveProject(); });
     $('#plate-rows').addEventListener('change', resizeFromInputs);
     $('#plate-columns').addEventListener('change', resizeFromInputs);
 
@@ -892,17 +1058,18 @@
     });
     $('#previous-window').addEventListener('click', () => navigateWindow(currentWindowIndex - 1));
     $('#next-window').addEventListener('click', () => navigateWindow(currentWindowIndex + 1));
-    $('#id-prefix').addEventListener('input', (event) => { project.settings.idPrefix = event.target.value; saveProject(); });
-    $('#id-start').addEventListener('change', (event) => { project.settings.idStart = Math.max(0, Number(event.target.value) || 0); event.target.value = project.settings.idStart; saveProject(); });
+    $('#id-prefix').addEventListener('input', (event) => { project.settings.idPrefix = validatedInput(event.target); saveProject(); });
+    $('#id-start').addEventListener('change', (event) => { project.settings.idStart = boundedNumber(event.target.value, 1, 0, Number.MAX_SAFE_INTEGER); event.target.value = project.settings.idStart; saveProject(); });
     $('#numbering-order').addEventListener('change', (event) => { project.settings.numberingOrder = event.target.value; saveProject(); });
     $('#numbering-scope').addEventListener('change', (event) => { project.settings.numberingScope = event.target.value; saveProject(); });
     $('#auto-fill-ids').addEventListener('change', (event) => {
+      if (featureIsLocked('well_id')) { renderIdControls(); return; }
       project.settings.autoFillWellIds = event.target.checked;
       if (event.target.checked) {
         for (const plate of project.plates) assignMissingIds(plate);
       } else {
         for (const plate of project.plates) for (const row of plate.wells) for (const well of row) {
-          if (!well.locked) well.well_id = '';
+          if (canEditField(well, 'well_id')) well.well_id = '';
         }
       }
       renderGrid(); renderInspector(); saveProject();
@@ -935,6 +1102,15 @@
     plateGrid.addEventListener('paste', onGridPaste);
     plateGrid.addEventListener('keydown', onGridKeydown);
 
+    $('#copy-wells-button').addEventListener('click', copySelectedWells);
+    $('#paste-wells-button').addEventListener('click', pasteCopiedWells);
+    plateGrid.addEventListener('copy', onGridCopy);
+    $('#import-xlsx-button').addEventListener('click', () => $('#xlsx-file').click());
+    $('#xlsx-file').addEventListener('change', importXlsxFile);
+    $('#xlsx-sheet').addEventListener('change', updateXlsxImportHint);
+    $('#xlsx-import-confirm').addEventListener('click', confirmXlsxImport);
+    $('#xlsx-import-cancel').addEventListener('click', () => $('#xlsx-import-dialog').close());
+    $('#multi-plate-prefix').addEventListener('input', (event) => validatedInput(event.target));
     $('#import-table-button').addEventListener('click', () => $('#table-file').click());
     $('#table-file').addEventListener('change', importTableFile);
     $('#save-project-button').addEventListener('click', downloadProject);
@@ -950,6 +1126,9 @@
     const rows = Math.max(1, Math.min(40, Math.floor(Number($('#plate-rows').value) || 1)));
     const columns = Math.max(1, Math.min(48, Math.floor(Number($('#plate-columns').value) || 1)));
     if (rows === plate.rows && columns === plate.columns) return;
+    if ((rows < plate.rows || columns < plate.columns) && !requireUnlockedFeatures('shrinking a plate')) {
+      renderSetup(); return;
+    }
     const removedLocked = plate.wells.some((row, r) => row.some((well, c) => (r >= rows || c >= columns) && well.locked));
     if (removedLocked) {
       $('#plate-rows').value = plate.rows; $('#plate-columns').value = plate.columns;
@@ -973,7 +1152,7 @@
 
   function addPlate() {
     const current = getPlate();
-    const plate = makePlate(`Plate ${project.plates.length + 1}`, current.rows, current.columns);
+    const plate = makePlate(`Plate_${project.plates.length + 1}`, current.rows, current.columns);
     plate.group = current.group; plate.sample_index = current.sample_index; plate.source_sample = current.source_sample;
     if (project.settings.autoFillWellIds && project.settings.numberingScope === 'continue') assignIdsToPlate(plate, offsetBeforePlate(project.plates.length));
     project.plates.push(plate); currentPlateId = plate.id; currentWindowIndex = 0; selectedKeys = new Set(['0,0']); renderAll();
@@ -1003,6 +1182,7 @@
   }
 
   function deleteAllExceptFirst() {
+    if (!requireUnlockedFeatures('deleting plates')) return;
     if (project.plates.length <= 1) { showToast('The project has only one plate.'); return; }
     const retained = project.plates[0];
     if (!requireUnlockedWells(project.plates.slice(1), 'deleting those plates')) return;
@@ -1012,6 +1192,7 @@
   }
 
   function resetProjectToDefaults() {
+    if (!requireUnlockedFeatures('resetting the project')) return;
     if (!requireUnlockedWells(project.plates, 'resetting the project')) return;
     if (!window.confirm('Reset the entire project to its defaults? This clears all plates and metadata, restores Cell line and Species, and returns to one blank 8 × 12 plate.')) return;
     project = blankProject();
@@ -1023,6 +1204,7 @@
 
   function applyCurrentPlateToAll() {
     if (project.plates.length < 2) { showToast('Create another plate first.'); return; }
+    if (!requireUnlockedFeatures('overwriting other plates')) return;
     const source = getPlate();
     if (!requireUnlockedWells(project.plates.filter((plate) => plate.id !== source.id), 'overwriting other plates')) return;
     const idNote = project.settings.autoFillWellIds && project.settings.numberingScope === 'continue'
@@ -1071,7 +1253,7 @@
     if (!Number.isFinite(count) || count < 1 || count > 100) {
       $('#multi-plate-error').textContent = 'Enter a number from 1 to 100.'; return;
     }
-    const labels = Array.from({ length: count }, (_, index) => `${prefix} ${start + index}`);
+    const labels = Array.from({ length: count }, (_, index) => `${validText(prefix)}_${start + index}`);
     const existing = new Set(project.plates.map((plate) => plate.label));
     const repeated = labels.find((label, index) => existing.has(label) || labels.indexOf(label) !== index);
     if (repeated) { $('#multi-plate-error').textContent = `Plate label “${repeated}” is already in use.`; return; }
@@ -1090,13 +1272,14 @@
   function duplicatePlate() {
     const current = getPlate();
     const copy = normalizePlate(JSON.parse(JSON.stringify(current)), project.plates.length);
-    copy.id = makeId(); copy.label = `${current.label || 'Plate'} copy`;
+    copy.id = makeId(); copy.label = validText(`${current.label || 'Plate'}_copy`);
     for (const row of copy.wells) for (const well of row) well.locked = false;
     if (project.settings.autoFillWellIds && project.settings.numberingScope === 'continue') assignIdsToPlate(copy, offsetBeforePlate(project.plates.length));
     project.plates.push(copy); currentPlateId = copy.id; currentWindowIndex = 0; selectedKeys = new Set(['0,0']); renderAll();
   }
 
   function removePlate() {
+    if (!requireUnlockedFeatures('removing this plate')) return;
     if (project.plates.length < 2) { showToast('A project must contain at least one plate.'); return; }
     const plate = getPlate();
     if (!requireUnlockedWells([plate], 'removing this plate')) return;
@@ -1107,6 +1290,7 @@
   }
 
   function regenerateAllIds() {
+    if (featureIsLocked('well_id')) { showToast('Unlock Well ID before generating IDs.'); return; }
     const prefix = project.settings.idPrefix;
     const start = project.settings.idStart;
     if (!window.confirm(`Regenerate unlocked well IDs using “${prefix}${start}” as the first ID? Locked wells will keep their IDs.`)) return;
@@ -1133,12 +1317,13 @@
   }
 
   function generateSelectedIds() {
+    if (featureIsLocked('well_id')) { showToast('Unlock Well ID before generating IDs.'); return; }
     const plate = getPlate(); const coords = editableSelection();
     if (!coords.length) { showToast('Unlock a selected well before generating IDs.'); return; }
     const hasIds = coords.some(([r, c]) => String(plate.wells[r][c].well_id || '').trim());
     if (hasIds && !window.confirm(`Generate new IDs for the ${coords.length} unlocked selected wells? Their existing IDs will be replaced.`)) return;
     const scope = project.settings.numberingScope === 'continue' ? project.plates : [plate];
-    const prefix = String(project.settings.idPrefix ?? 'well_dt_');
+    const prefix = validText(project.settings.idPrefix ?? 'well_dt_');
     const used = new Set();
     for (const scopedPlate of scope) for (let r = 0; r < scopedPlate.rows; r++) for (let c = 0; c < scopedPlate.columns; c++) {
       if (scopedPlate.wells[r][c].well_id) used.add(String(scopedPlate.wells[r][c].well_id));
@@ -1161,17 +1346,16 @@
     if (!window.confirm(`Clear the well ID, barcode, occupancy, and every metadata value from ${coords.length} unlocked selected well${coords.length === 1 ? '' : 's'}?${idEffect}`)) return;
     for (const [r, c] of coords) {
       const well = plate.wells[r][c];
-      well.well_id = ''; well.barcode = ''; well.is_occupied = false;
-      well.values = defaultValues(metadataFields());
+      for (const field of ['well_id', 'barcode', 'is_occupied', ...metadataFields()]) setField(well, field, '');
     }
     if (project.settings.autoFillWellIds) for (const item of project.plates) assignMissingIds(item);
     renderGrid(); renderInspector(); saveProject(); showToast(`Cleared values in ${coords.length} selected wells.`);
   }
 
   function assignMissingIds(plate) {
-    if (project.settings.autoFillWellIds === false) return;
+    if (project.settings.autoFillWellIds === false || featureIsLocked('well_id')) return;
     const scope = project.settings.numberingScope === 'continue' ? project.plates : [plate];
-    const prefix = String(project.settings.idPrefix || 'well_dt_');
+    const prefix = validText(project.settings.idPrefix || 'well_dt_');
     const highestNumber = highestIdNumber(scope, prefix);
     let next = highestNumber + 1;
     for (const [r, c] of numberingCoordinates(plate)) {
@@ -1182,7 +1366,7 @@
   function promptForCustomField() {
     const raw = window.prompt('Name the metadata field (for example: cell_line or operator):');
     if (raw == null) return;
-    const field = normalizeFieldName(raw);
+    const field = normalizeFieldName(validText(raw));
     if (!field) { showToast('Enter a field name using letters or numbers.'); return; }
     if (!isAllowedOptionalField(field)) { showToast('That field name is reserved for plate structure or well IDs.'); return; }
     if (project.fields.includes(field)) { showToast('That field is already active.'); return; }
@@ -1326,6 +1510,9 @@
   function onGridPaste(event) {
     const text = event.clipboardData?.getData('text/plain');
     const cell = event.target.closest('.well-cell');
+    if (cell && copiedWells && event.clipboardData?.getData('application/x-easyplate-wells') === JSON.stringify(copiedWells)) {
+      event.preventDefault(); pasteCopiedWells(); return;
+    }
     if (!text || !cell) return;
     event.preventDefault();
     applyPastedText(text, [Number(cell.dataset.r), Number(cell.dataset.c)], pasteTargetFeature(), true);
@@ -1338,7 +1525,7 @@
     const rows = []; let row = []; let cell = ''; let quoted = false;
     for (let i = 0; i < cleaned.length; i++) {
       const char = cleaned[i];
-      if (char === '"') {
+      if (char === '"' && (quoted || cell === '')) {
         if (quoted && cleaned[i + 1] === '"') { cell += '"'; i++; }
         else quoted = !quoted;
       } else if (!quoted && char === delimiter) { row.push(cell); cell = ''; }
@@ -1346,11 +1533,14 @@
       else cell += char;
     }
     if (cell.length || row.length) { row.push(cell); rows.push(row); }
-    while (rows.length && rows[rows.length - 1].every((value) => value === '')) rows.pop();
+    // A trailing newline terminates the previous row; it does not add a row.
+    // Keep explicitly empty rows/cells so a pasted Excel range can clear values.
     return rows;
   }
 
   function canonicalHeader(value) {
+    const exact = normalizeFieldName(value);
+    if (project.fields.includes(exact)) return exact;
     const raw = String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
     const aliases = {
       plate: 'plate_id', label: 'plate_id', plate_name: 'plate_id',
@@ -1364,12 +1554,20 @@
 
   function isHeaderRow(row) {
     const normalized = row.map(canonicalHeader);
-    const known = new Set(['plate_id', 'well_id', 'barcode', 'well_name_label', 'plate_position', 'plate_row', 'plate_column', 'dose', 'time', 'treatment', 'sample_index', 'source_sample', 'x', 'y']);
+    const known = new Set([...project.fields, 'plate_id', 'well_id', 'barcode', 'well_name_label', 'plate_position', 'plate_row', 'plate_column', 'dose', 'time', 'treatment', 'sample_index', 'source_sample', 'x', 'y']);
     return normalized.filter((field) => known.has(field)).length >= 2;
   }
 
   function applyPastedText(text, start, field, fromClipboard) {
     const matrix = parseDelimited(text);
+    return applyMatrix(matrix, start, field, fromClipboard);
+  }
+
+  function pasteTargetFeature() {
+    return $('#paste-feature').value || project.fields[0] || 'well_id';
+  }
+
+  function applyMatrix(matrix, start, field, fromClipboard = false) {
     if (!matrix.length) return 0;
     if (isHeaderRow(matrix[0])) {
       const count = applyHeaderMatrix(matrix, start);
@@ -1379,7 +1577,9 @@
       return count;
     }
     const plate = getPlate();
-    const nonemptyRows = matrix.filter((row) => row.length);
+    const width = matrix.reduce((maximum, row) => Math.max(maximum, row.length), 0);
+    if (!width) return 0;
+    const nonemptyRows = matrix.map((row) => Array.from({length: width}, (_, column) => row[column] ?? ''));
     const requested = nonemptyRows.reduce((total, row) => total + row.length, 0);
     const singleColumn = nonemptyRows.every((row) => row.length === 1);
     let count = 0;
@@ -1388,19 +1588,18 @@
       nonemptyRows.forEach((row, index) => {
         if (index >= coords.length) return;
         const [r, c] = coords[index]; const well = wellAt(plate, r, c);
-        if (well.locked) return;
+        if (!canEditField(well, field)) return;
         setField(well, field, row[0]);
-        if (row[0].trim() && fieldOccupiesWell(field)) well.is_occupied = true; count++;
+        if (String(row[0]).trim() && fieldOccupiesWell(field) && canEditField(well, 'is_occupied')) well.is_occupied = true; count++;
       });
     } else {
-      let sourceRow = 0;
       for (let r = 0; r < nonemptyRows.length; r++) {
         for (let c = 0; c < nonemptyRows[r].length; c++) {
           const rr = start[0] + r; const cc = start[1] + c;
           if (rr >= plate.rows || cc >= plate.columns) continue;
           const value = nonemptyRows[r][c]; const well = wellAt(plate, rr, cc);
-          if (well.locked) continue;
-          setField(well, field, value); if (value.trim() && fieldOccupiesWell(field)) well.is_occupied = true; count++;
+          if (!canEditField(well, field)) continue;
+          setField(well, field, value); if (String(value).trim() && fieldOccupiesWell(field) && canEditField(well, 'is_occupied')) well.is_occupied = true; count++;
         }
       }
     }
@@ -1412,24 +1611,22 @@
 
   function showPasteToast(count) {
     showToast(lastPasteSkipped
-      ? `Pasted ${count} values; ${lastPasteSkipped} skipped (locked or outside the plate).`
+      ? `Pasted ${count} values; ${lastPasteSkipped} skipped (locked well/feature or outside the plate).`
       : `Pasted data into ${count} wells.`);
   }
 
   function applyHeaderMatrix(matrix, start) {
     const headers = matrix[0].map(canonicalHeader);
-    for (const field of headers) {
-      if (['x', 'y', 'plate_row', 'plate_column', 'plate_position', 'plate_id', 'sample_index', 'source_sample'].includes(field)) continue;
-      if (isAllowedOptionalField(field)) addOptionalField(field);
-    }
     const plate = getPlate();
     let sequential = 0; let count = 0;
     const fallbackCoords = selectionKeysOrSequential(plate, start);
     for (const row of matrix.slice(1)) {
       if (row.every((value) => !String(value).trim())) continue;
       const record = Object.fromEntries(headers.map((header, i) => [header, row[i] ?? '']));
-      let target = null;
-      if (record.well_id) {
+      const hasPosition = ['plate_position', 'plate_row', 'plate_column', 'x', 'y'].some((key) => String(record[key] ?? '') !== '');
+      if (hasPosition && !recordCoordinate(record, plate)) { sequential++; continue; }
+      let target = hasPosition ? recordCoordinate(record, plate) : null;
+      if (!target && record.well_id) {
         for (let r = 0; r < plate.rows && !target; r++) for (let c = 0; c < plate.columns; c++) {
           if (plate.wells[r][c].well_id.toLowerCase() === String(record.well_id).trim().toLowerCase()) { target = [r, c]; break; }
         }
@@ -1438,8 +1635,7 @@
       sequential++;
       if (!target) continue;
       const [r, c] = target; const well = wellAt(plate, r, c); if (!well || well.locked) continue;
-      applyRecordToWell(well, record);
-      count++;
+      if (applyRecordToWell(well, record)) count++;
     }
     return count;
   }
@@ -1459,21 +1655,22 @@
   }
 
   function recordCoordinate(record, plate) {
-    if (record.plate_position) {
-      const match = String(record.plate_position).trim().match(/^([A-Za-z]+)\s*0*([0-9]+)$/);
-      if (match) return [parseRowLabel(match[1]), Number(match[2]) - 1];
-    }
     let r = Number.NaN; let c = Number.NaN;
     if (record.plate_row !== '' && record.plate_row != null) r = Number(record.plate_row) - 1;
     if (record.plate_column !== '' && record.plate_column != null) c = Number(record.plate_column) - 1;
     if (!Number.isFinite(r) && record.y !== '' && record.y != null) r = Number(record.y) - 1;
     if (!Number.isFinite(c) && record.x !== '' && record.x != null) c = Number(record.x) - 1;
-    return Number.isFinite(r) && Number.isFinite(c) && r >= 0 && c >= 0 && r < plate.rows && c < plate.columns ? [r, c] : null;
+    if (!Number.isFinite(r) && !Number.isFinite(c) && record.plate_position) {
+      const match = String(record.plate_position).trim().match(/^([A-Za-z]+)\s*0*([0-9]+)$/);
+      if (match) { r = parseRowLabel(match[1]); c = Number(match[2]) - 1; }
+    }
+    return Number.isInteger(r) && Number.isInteger(c) && r >= 0 && c >= 0 && r < plate.rows && c < plate.columns ? [r, c] : null;
   }
 
   function applyRecordToWell(well, record) {
-    if (well.locked) return;
-    const handled = new Set(['plate_id', 'group', 'sample_index', 'source_sample', 'plate_position', 'plate_row', 'plate_column', 'x', 'y', 'total_well', 'locked', 'well_name_fill_color', 'well_number_label', 'well_number_fill_color', 'display_feature', 'display_label', 'display_fill_color']);
+    if (well.locked) return false;
+    let written = false;
+    const handled = new Set(['plate_id', 'plate_key', 'group', 'sample_index', 'source_sample', 'plate_position', 'plate_row', 'plate_column', 'x', 'y', 'total_well', 'locked', 'well_name_fill_color', 'well_number_label', 'well_number_fill_color', 'display_feature', 'display_label', 'display_fill_color']);
     for (const [rawField, rawValue] of Object.entries(record)) {
       if (handled.has(rawField) || rawValue == null) continue;
       let field = rawField;
@@ -1482,20 +1679,33 @@
       if (field === 'well_name_label') continue;
       if (field === 'well_number') field = 'well_id';
       if (field === 'is_occupied') {
-        well.is_occupied = /^(1|true|yes|occupied)$/i.test(String(rawValue).trim()); continue;
+        if (setField(well, field, rawValue)) written = true;
+        continue;
       }
-      setField(well, field, rawValue);
+      if (setField(well, field, rawValue)) written = true;
     }
     const explicitlyOccupied = record.is_occupied != null && String(record.is_occupied).trim() !== '';
-    if (!explicitlyOccupied && (well.barcode || metadataFields().some((field) => String(well.values[field] || '').trim()))) well.is_occupied = true;
+    if (written && !explicitlyOccupied && canEditField(well, 'is_occupied') && (well.barcode || metadataFields().some((field) => String(well.values[field] || '').trim()))) well.is_occupied = true;
+    return written;
   }
 
-  function installImportedPlates(imported, sourceName, mapping = '') {
+  function installImportedPlates(imported, sourceName, mapping = '', mode = null, importedState = null) {
     if (!imported.length) { showToast('No plates were found in that file.'); return; }
     const mappingText = mapping ? `\nDetected fields: ${mapping}.` : '';
-    const hasLocks = lockedWells() > 0;
-    if (hasLocks && !window.confirm(`Found ${imported.length} plate${imported.length === 1 ? '' : 's'} in ${sourceName}.${mappingText}\nThe current project has locked wells, so it cannot be replaced. Add the imported plates instead?`)) return;
-    const replace = !hasLocks && window.confirm(`Found ${imported.length} plate${imported.length === 1 ? '' : 's'} in ${sourceName}.${mappingText}\nReplace the current project? Choose Cancel to add them to this project.`);
+    const hasLocks = lockedWells() > 0 || (project.lockedFeatures || []).length > 0;
+    if (mode === 'replace' && hasLocks) throw new Error('Unlock all wells and features before replacing the project.');
+    if (!mode && hasLocks && !window.confirm('This project has locked wells or features. Add the imported plates as new plates?')) return;
+    const replace = mode === 'replace' || (!mode && !hasLocks && window.confirm(`Found ${imported.length} plates in ${sourceName}.${mappingText}\nReplace the current project? Choose Cancel to add them.`));
+    if (replace && mode && !window.confirm('Replace the current project with the imported plates?')) return;
+    if (importedState) {
+      project.fields = replace ? [...importedState.fields] : [...new Set([...project.fields, ...importedState.fields])];
+      project.lockedFeatures = replace ? [...(importedState.lockedFeatures || [])]
+        : [...new Set([...(project.lockedFeatures || []), ...(importedState.lockedFeatures || [])])];
+      if (replace && importedState.settings) {
+        project.settings = importedState.settings;
+        selectedFeatures = [...project.settings.displayFeatures];
+      }
+    }
     if (replace) {
       project.plates = imported;
     }
@@ -1512,8 +1722,8 @@
     try {
       const text = await file.text(); const matrix = parseDelimited(text);
       if (matrix.length && isHeaderRow(matrix[0])) {
-        const imported = tableToPlates(matrix);
-        if (imported.length) installImportedPlates(imported, file.name, [...new Set(matrix[0].map(canonicalHeader))].join(', '));
+        const imported = buildImportedTable(matrix);
+        if (imported.plates.length) installImportedPlates(imported.plates, file.name, '', null, imported);
         else showToast('No well records were found in that table.');
       } else {
         const [r, c] = anchorCoordinate(); const count = applyPastedText(text, [r, c], pasteTargetFeature(), false);
@@ -1524,20 +1734,27 @@
 
   function tableToPlates(matrix) {
     const headers = matrix[0].map(canonicalHeader);
+    for (const header of headers) {
+      if (isAllowedOptionalField(header)) addOptionalField(header);
+    }
     const records = matrix.slice(1).filter((row) => row.some((value) => String(value).trim())).map((row) => Object.fromEntries(headers.map((header, i) => [header, row[i] ?? ''])));
     if (!records.length) return [];
     const groups = new Map();
     records.forEach((record) => {
-      const label = String(record.plate_id || 'Imported plate 1');
-      if (!groups.has(label)) groups.set(label, []);
-      groups.get(label).push({ record });
+      const key = String(record.plate_key || record.plate_id || 'Imported_plate_1');
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push({ record });
     });
     const imported = [];
-    for (const [label, entries] of groups) {
+    for (const [, entries] of groups) {
+      const label = validText(entries[0].record.plate_id || 'Imported_plate_1');
       let maxR = -1; let maxC = -1; let total = 0;
       for (const { record } of entries) {
         total = Math.max(total, Number(record.total_well) || 0);
         const point = recordCoordinate({ ...record, plate_position: record.plate_position || record.position }, { rows: 40, columns: 48 });
+        if (['plate_position', 'plate_row', 'plate_column', 'x', 'y'].some((key) => String(record[key] ?? '') !== '') && !point) {
+          throw new Error('Invalid plate position in the imported table (maximum 40 rows by 48 columns).');
+        }
         if (point) { maxR = Math.max(maxR, point[0]); maxC = Math.max(maxC, point[1]); }
       }
       const common = { 6: [2, 3], 12: [3, 4], 24: [4, 6], 48: [6, 8], 96: [8, 12], 384: [16, 24], 1536: [32, 48] }[total] || [0, 0];
@@ -1551,18 +1768,167 @@
       }
       const plate = makePlate(label, rows, columns);
       const first = entries[0].record;
-      plate.group = String(first.group || ''); plate.sample_index = String(first.sample_index ?? ''); plate.source_sample = String(first.source_sample || '');
+      plate.group = validText(first.group || ''); plate.sample_index = validText(first.sample_index ?? ''); plate.source_sample = validText(first.source_sample || '');
       let sequential = 0;
       for (const { record } of entries) {
         let point = recordCoordinate({ ...record, plate_position: record.plate_position || record.position }, plate);
         if (!point) point = [Math.floor(sequential / columns), sequential % columns];
         sequential++;
         const [r, c] = point;
-        if (r >= 0 && r < rows && c >= 0 && c < columns) applyRecordToWell(plate.wells[r][c], record);
+        if (r >= 0 && r < rows && c >= 0 && c < columns) {
+          applyRecordToWell(plate.wells[r][c], record);
+          plate.wells[r][c].locked = /^(1|true|yes)$/i.test(String(record.locked || ''));
+        }
       }
       imported.push(plate);
     }
     return imported;
+  }
+
+  function buildImportedTable(matrix, metadata = null) {
+    const current = project;
+    try {
+      const fields = metadata?.fields || project.fields;
+      project = { version: 6, settings: JSON.parse(JSON.stringify(current.settings)),
+        fields: [...fields], lockedFeatures: [], plates: [] };
+      project.plates = tableToPlates(matrix);
+      if (metadata) {
+        const keys = [...new Set(matrix.slice(1).map((row) => row[matrix[0].map(canonicalHeader).indexOf('plate_key')]))];
+        project.plates.forEach((plate, index) => {
+          const layout = metadata.layouts?.find((item) => item.plateKey === keys[index]);
+          if (layout?.rowLabels?.length === plate.rows) plate.rowLabels = [...layout.rowLabels];
+          if (layout?.columnLabels?.length === plate.columns) plate.columnLabels = [...layout.columnLabels];
+        });
+        project.lockedFeatures = (metadata.lockedFeatures || []).filter((field) => [...project.fields, 'well_id', 'is_occupied'].includes(field));
+        if (metadata.settings) project.settings = detachedProject({ ...project, settings: metadata.settings }).settings;
+      }
+      sanitizeImportedProject(project);
+      return project;
+    } finally { project = current; }
+  }
+
+  function workbookMetadata(sheets) {
+    const sheet = sheets.find((item) => item.rows[0]?.[0] === 'EasyPlate_workbook_v1');
+    if (!sheet) return null;
+    try {
+      const metadata = JSON.parse(sheet.rows.slice(1).map((row) => row[1] || '').join(''));
+      if (!Array.isArray(metadata.fields) || !Array.isArray(metadata.layouts)) throw new Error();
+      return metadata;
+    } catch (_) { throw new Error('The EasyPlate workbook information is damaged.'); }
+  }
+
+  async function importXlsxFile(event) {
+    const file = event.target.files?.[0]; event.target.value = '';
+    if (!file) return;
+    try {
+      if (file.size > 64 * 1024 * 1024) throw new Error('Choose a workbook smaller than 64 MB.');
+      const sheets = await globalThis.EasyPlateXlsx.readWorkbook(await file.arrayBuffer());
+      const metadata = workbookMetadata(sheets);
+      pendingWorkbook = { sheets, metadata, name: file.name };
+      const select = $('#xlsx-sheet'); select.replaceChildren();
+      sheets.forEach((sheet, index) => {
+        if (sheet.hidden || sheet.rows[0]?.[0] === 'EasyPlate_workbook_v1') return;
+        const option = document.createElement('option'); option.value = index; option.textContent = sheet.name; select.append(option);
+      });
+      const dataIndex = metadata?.dataSheetIndex ?? sheets.findIndex((sheet) => /^Well data(?: \(\d+\))?$/i.test(sheet.name) && isHeaderRow(sheet.rows[0] || []));
+      if ([...select.options].some((option) => Number(option.value) === dataIndex)) select.value = dataIndex;
+      if (!select.options.length) throw new Error('No visible worksheets were found.');
+      $('#xlsx-import-mode').value = 'add';
+      $('#xlsx-import-error').textContent = '';
+      updateXlsxImportHint(); $('#xlsx-import-dialog').showModal();
+    } catch (error) { pendingWorkbook = null; showToast('XLSX import failed: ' + error.message); }
+  }
+
+  function selectedWorkbookSheet() {
+    return pendingWorkbook?.sheets[Number($('#xlsx-sheet').value)];
+  }
+
+  function isLayoutSheet(sheet) {
+    return String(sheet.rows[1]?.[0] || '').startsWith('EasyPlate layout');
+  }
+
+  function updateXlsxImportHint() {
+    const sheet = selectedWorkbookSheet(); if (!sheet) return;
+    const isTable = isHeaderRow(sheet.rows[0] || []);
+    const layout = isLayoutSheet(sheet);
+    $('#xlsx-import-hint').textContent = isTable
+      ? 'Import the annotation table with one row per well, including Well IDs and lock states.'
+      : layout ? 'Import this plate layout, including edits to the displayed values in its cells.'
+      : 'Import this worksheet as a rectangular grid into the chosen feature.';
+    $('#xlsx-import-mode').querySelector('[value="replace"]').disabled = lockedWells() > 0 || (project.lockedFeatures || []).length > 0;
+    if ($('#xlsx-import-mode').selectedOptions[0]?.disabled) $('#xlsx-import-mode').value = 'add';
+  }
+
+  function layoutTable(sheet, sheetIndex) {
+    const { metadata, sheets } = pendingWorkbook;
+    const descriptor = metadata?.layouts.find((item) => item.sheetIndex === sheetIndex);
+    let fields = descriptor?.displayFields;
+    if (!fields) {
+      const subtitle = String(sheet.rows[1]?.[0] || '');
+      const title = subtitle.split(' · ')[1] || '';
+      if (/^\d+ features$/.test(title)) throw new Error('For older workbooks with several displayed features, select the Well data worksheet.');
+      fields = title === 'No labels' ? [] : title === 'Well IDs only' ? ['well_id'] : [canonicalHeader(title)];
+      const data = sheets.find((item) => /^Well data/i.test(item.name));
+      const first = data?.rows[1];
+      if (first && sheet.rows[4]?.[1]?.split('\n').length === 2 && !fields.includes('well_id')) fields.push('well_id');
+    }
+    if (fields.some((field) => !['well_id', 'is_occupied', ...(metadata?.fields || project.fields)].includes(field))) {
+      throw new Error('Cannot map this layout to features. Select Well data instead.');
+    }
+    const dataSheet = sheets[metadata?.dataSheetIndex] || sheets.find((item) => /^Well data/i.test(item.name));
+    if (!dataSheet) throw new Error('The Well data worksheet is missing.');
+    const headers = dataSheet.rows[0].map(canonicalHeader);
+    const plateColumn = headers.indexOf('plate_id'); const keyColumn = headers.indexOf('plate_key');
+    const label = descriptor?.label || sheet.rows[0]?.[0] || sheet.name;
+    const records = dataSheet.rows.slice(1).filter((row) => keyColumn >= 0 && descriptor?.plateKey
+      ? row[keyColumn] === descriptor.plateKey : row[plateColumn] === label);
+    const result = [headers];
+    for (const row of records) {
+      const record = Object.fromEntries(headers.map((header, index) => [header, row[index] ?? '']));
+      const point = recordCoordinate(record, {rows: 40, columns: 48});
+      if (!point) throw new Error('Invalid position in Well data.');
+      const [r, c] = point;
+      const text = sheet.rows[r + 4]?.[c + 1] ?? '';
+      let lines = String(text).split('\n');
+      if (text === '') lines = Array(fields.length).fill('');
+      if (fields.length && lines.length !== fields.length) throw new Error('Keep one line per displayed feature in layout cells, or edit Well data.');
+      fields.forEach((field, index) => {
+        record[field] = ['—', 'No well ID'].includes(lines[index]) ? '' : lines[index];
+      });
+      result.push(headers.map((header) => record[header] ?? ''));
+    }
+    if (result.length === 1) throw new Error('No matching plate records were found in Well data.');
+    return result;
+  }
+
+  function confirmXlsxImport() {
+    if (!pendingWorkbook) return;
+    try {
+      const sheetIndex = Number($('#xlsx-sheet').value);
+      const sheet = selectedWorkbookSheet(); const mode = $('#xlsx-import-mode').value;
+      const matrix = isLayoutSheet(sheet) ? layoutTable(sheet, sheetIndex) : sheet.rows;
+      const table = isHeaderRow(matrix[0] || []);
+      if (mode === 'paste') {
+        const count = applyMatrix(matrix, anchorCoordinate(), pasteTargetFeature());
+        showPasteToast(count);
+      } else {
+        let state;
+        if (table) state = buildImportedTable(matrix, pendingWorkbook.metadata);
+        else {
+          const rows = matrix.length; const columns = matrix.reduce((maximum, row) => Math.max(maximum, row.length), 0);
+          if (rows < 1 || rows > 40 || columns < 1 || columns > 48) throw new Error('A plain plate grid must be at most 40 rows by 48 columns.');
+          const field = pasteTargetFeature();
+          const records = [['plate_id', 'plate_row', 'plate_column', field]];
+          matrix.forEach((row, r) => {
+            for (let c = 0; c < columns; c++) records.push([sheet.name, r + 1, c + 1, row[c] ?? '']);
+          });
+          state = buildImportedTable(records);
+        }
+        if (!state.plates.length) throw new Error('No well records were found.');
+        installImportedPlates(state.plates, pendingWorkbook.name, '', mode, state);
+      }
+      $('#xlsx-import-dialog').close(); pendingWorkbook = null;
+    } catch (error) { $('#xlsx-import-error').textContent = error.message; }
   }
 
   function downloadProject() {
@@ -1574,9 +1940,10 @@
   async function openProjectFile(event) {
     const file = event.target.files?.[0]; event.target.value = '';
     if (!file) return;
-    if (!requireUnlockedWells(project.plates, 'opening another project')) return;
+    if (!requireUnlockedFeatures('opening another project') || !requireUnlockedWells(project.plates, 'opening another project')) return;
     try {
-      const imported = normalizeProject(JSON.parse(await file.text()));
+      const imported = detachedProject(JSON.parse(await file.text()));
+      sanitizeImportedProject(imported);
       project = imported; currentPlateId = project.plates[0].id; currentWindowIndex = 0; selectedFeatures = [...project.settings.displayFeatures]; selectedFeature = selectedFeatures[0] || project.fields[0] || 'cell_line';
       selectedKeys = new Set(['0,0']); renderAll(); showToast('Project opened.');
     } catch (error) { showToast(`Could not open project: ${error.message}`); }
@@ -1687,7 +2054,7 @@
       const layoutSheets = project.plates.map((plate) => ({
         type: 'layout', name: plate.label || 'Plate', title: plate.label || 'Untitled plate',
         subtitle: `EasyPlate layout · ${selectedDisplayTitle()} · ${plate.rows} rows × ${plate.columns} columns${plate.group ? ` · ${plate.group}` : ''}`,
-        note: 'Edit cells in Excel. Orange borders mark wells locked in EasyPlate; workbook edits do not change this browser project.',
+        note: 'Edit this layout or Well data, then use Import XLSX. Orange borders mark locked wells.',
         columns: [...plate.columnLabels],
         rows: plate.wells.map((row, r) => ({
           label: plate.rowLabels[r] || lettersForRow(r),
@@ -1697,16 +2064,31 @@
         }))
       }));
       const dataFields = project.fields.filter((field) => field !== 'barcode');
-      const headers = ['Plate', 'Position', 'Row', 'Column', 'Well ID', 'Occupied', 'Locked', 'Barcode', ...dataFields.map(featureLabel)];
+      const headers = ['plate_id', 'plate_key', 'plate_position', 'plate_row', 'plate_column', 'well_id', 'is_occupied', 'locked',
+        'group', 'sample_index', 'source_sample', ...(project.fields.includes('barcode') ? ['barcode'] : []), ...dataFields];
       const dataRows = [];
       for (const plate of project.plates) for (let r = 0; r < plate.rows; r++) for (let c = 0; c < plate.columns; c++) {
         const well = plate.wells[r][c];
-        dataRows.push([plate.label, positionLabel(plate, r, c), r + 1, c + 1,
-          well.well_id, wellIsOccupied(well) ? 'Yes' : 'No', well.locked ? 'Yes' : 'No', well.barcode,
+        dataRows.push([plate.label, plate.id, positionLabel(plate, r, c), r + 1, c + 1,
+          well.well_id, well.is_occupied ? 'Yes' : 'No', well.locked ? 'Yes' : 'No',
+          plate.group, plate.sample_index, plate.source_sample, ...(project.fields.includes('barcode') ? [well.barcode] : []),
           ...dataFields.map((field) => getValue(well, field))]);
       }
+      const displayFields = [...selectedFeatures];
+      if (project.settings.preview.showWellId && !displayFields.includes('well_id')) displayFields.push('well_id');
+      const metadata = JSON.stringify({
+        fields: project.fields, lockedFeatures: project.lockedFeatures || [], settings: project.settings,
+        dataSheetIndex: layoutSheets.length,
+        layouts: project.plates.map((plate, sheetIndex) => ({
+          sheetIndex, plateKey: plate.id, label: plate.label, displayFields,
+          rowLabels: plate.rowLabels, columnLabels: plate.columnLabels
+        }))
+      });
+      const metadataRows = [];
+      for (let offset = 0; offset < metadata.length; offset += 30000) metadataRows.push([String(offset), metadata.slice(offset, offset + 30000)]);
       const workbook = globalThis.EasyPlateXlsx.createWorkbook([
-        ...layoutSheets, { type: 'table', name: 'Well data', headers, rows: dataRows }
+        ...layoutSheets, { type: 'table', name: 'Well data', headers, rows: dataRows },
+        { type: 'table', name: 'EasyPlate info', hidden: true, headers: ['EasyPlate_workbook_v1', 'JSON'], rows: metadataRows }
       ]);
       downloadBlob(workbook, 'easyplate_plate_layout.xlsx');
       showToast(`Exported ${layoutSheets.length} editable plate layout${layoutSheets.length === 1 ? '' : 's'} to XLSX.`);

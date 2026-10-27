@@ -65,16 +65,27 @@ cannot create plates or trigger exports.
 1. Check whether the browser already has a project. EasyPlate autosaves to
    that browser's local storage; use a fresh browser profile for an isolated
    run. Do not reset an existing project unless the user asked for that.
-2. Create plates with **New plate**, or import a CSV/TSV through the browser.
-   Edit well IDs and metadata in **Well details**.
+2. Create plates with **New plate**, or import CSV/TSV/XLSX through the browser.
+   For XLSX, choose a worksheet and whether to add plates, replace the project,
+   or paste into the current plate. Well data restores complete annotations;
+   new layout sheets support edited displayed values.
+   Text input allows only English letters, numbers, `_`, and `-`; other
+   characters become `_` with an **invalid input** warning.
 3. Review the plate preview and any missing or duplicate well ID warning.
 4. Use **Lock selected** in Layout Preview to protect selected wells from edits,
    and **Unlock selected** to make them editable again. Locked wells are saved
    in project JSON; bulk actions skip them or require unlocking first.
+   **Lock** beside a feature protects that feature across every well and plate.
+   Use **Unlock** before changing it. Feature locks persist in JSON and new XLSX
+   exports. Do not bypass them through import or project replacement.
+   **Copy wells** and **Paste wells** transfer metadata within or between plates;
+   destination IDs stay intact unless **Include well IDs** is checked.
+   For Excel ranges, choose **Paste table into**, focus the starting well, and
+   paste tab-separated rows/columns with Ctrl/Cmd+V.
 5. Use **Save project** for a reusable JSON copy. **Export CSV**,
    **Export plate PNG**, and **Export layout XLSX** download files through the
-   browser. The XLSX has editable plate layouts and a Well data sheet; editing
-   it does not change the browser project. **Save PDF** opens
+   browser. The XLSX has editable plate layouts and a Well data sheet; reimport
+   the edited worksheet through **Import XLSX** to apply changes. **Save PDF** opens
    the browser print flow, where the PDF destination must be selected.
 
 Downloads follow the browser's settings. Browser local storage and downloaded

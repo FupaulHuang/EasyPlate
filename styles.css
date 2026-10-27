@@ -26,6 +26,20 @@ button { cursor: pointer; }
 .brand-mark i { border-radius: 2px; background: #3b8c66; }
 .brand-mark i:nth-child(2), .brand-mark i:nth-child(3) { background: #85bd9c; }
 .top-actions, .export-actions, .plate-actions { display: flex; align-items: center; gap: 8px; }
+.top-actions { flex-wrap: wrap; justify-content: flex-end; }
+.topbar { min-height: 72px; height: auto; padding-block: 12px; }
+.transfer-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-bottom: 12px; padding: 8px 0; border-bottom: 1px solid #edf1ee; }
+.transfer-toolbar .checkbox-field { padding: 0; }
+.transfer-toolbar .hint { flex-basis: 100%; margin: 0; }
+.paste-target { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 15px; color: #59675e; }
+.paste-target select { max-width: 210px; padding: 5px 8px; border: 1px solid #e3e9e4; border-radius: 6px; background: white; color: #34443a; }
+.feature-lock-button { padding: 2px 4px; border: 1px solid #dce5de; border-radius: 4px; background: #f6faf7; color: #397752; font-size: 13px; }
+.feature-lock-button[aria-pressed="true"] { color: #8b581f; border-color: #c59762; background: #fff5e9; }
+.occupancy-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.field-actions { flex-wrap: wrap; }
+.well-fields input:disabled { background: #f4f6f4; color: #7d8982; }
+.input-warning { position: fixed; z-index: 30; left: 50%; bottom: 24px; transform: translateX(-50%); max-width: calc(100vw - 32px); padding: 12px 16px; border: 1px solid #c18c4f; border-radius: 8px; background: #fff1de; color: #704719; font-size: 16px; box-shadow: 0 3px 12px #0002; }
+.input-warning[hidden] { display: none; }
 .export-actions { flex-wrap: wrap; justify-content: flex-end; }
 .button { border: 1px solid transparent; min-height: 38px; padding: 0 13px; border-radius: 8px; font-size: 13px; font-weight: 600; white-space: nowrap; transition: background .15s, border-color .15s, transform .15s; }
 .button:active { transform: translateY(1px); }
@@ -179,8 +193,10 @@ h2 { margin: 4px 0 0; font: 700 17px/1.35 Manrope, sans-serif; letter-spacing: -
 .well-fields { display: grid; gap: 8px; padding-right: 2px; }
 .well-details-panel .well-fields { grid-template-columns: minmax(0, 1fr); }
 .well-details-panel .field-heading { flex-wrap: wrap; }
+.well-details-panel .field-heading { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; }
+.well-details-panel .field-actions { justify-content: flex-start; }
 .well-feature-fields:not(:empty) { margin-top: 10px; padding-top: 10px; border-top: 1px solid #edf1ee; }
-.well-feature-fields.is-scrollable { max-height: min(310px, 55vh); overflow-y: scroll; overscroll-behavior: contain; scrollbar-width: auto; scrollbar-gutter: stable; padding-right: 8px; }
+.well-feature-fields.is-scrollable { max-height: min(430px, 55vh); overflow-y: scroll; overscroll-behavior: contain; scrollbar-width: auto; scrollbar-gutter: stable; padding-right: 8px; }
 .well-feature-fields.is-scrollable::-webkit-scrollbar { width: 10px; }
 .well-feature-fields.is-scrollable::-webkit-scrollbar-thumb { border: 2px solid #fff; border-radius: 10px; background: #a9b9ad; }
 .well-feature-fields.is-scrollable::-webkit-scrollbar-track { background: #f4f7f4; }
